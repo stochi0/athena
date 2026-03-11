@@ -23,7 +23,7 @@ def _default_request() -> CreateSandboxRequest:
     )
 
 
-class RubricSandboxClient(SandboxMixin):
+class SandboxClient(SandboxMixin):
     def __init__(self) -> None:
         self.init_sandbox_client(
             sandbox_client_max_workers=10,
@@ -48,11 +48,11 @@ class RubricSandboxClient(SandboxMixin):
         )
 
 
-_client: RubricSandboxClient | None = None
+_client: SandboxClient | None = None
 
 
-def get_sandbox_client() -> RubricSandboxClient:
+def get_sandbox_client() -> SandboxClient:
     global _client
     if _client is None:
-        _client = RubricSandboxClient()
+        _client = SandboxClient()
     return _client
