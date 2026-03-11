@@ -1,3 +1,3 @@
-# Athena Environments
+# Athena
 
 Evals & Envs
