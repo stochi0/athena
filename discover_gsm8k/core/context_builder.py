@@ -10,20 +10,20 @@ from verifiers.types import Info
 TASK_FILE = "task.json"
 
 PROMPT = (
-    f"Write rubric_fn(input_text, response) -> float (0–1). REPL: {TASK_FILE} contains hint and train. "
-    "All tool usage, testing, and submission MUST be performed by executing Python statements inside this REPL; describing actions is insufficient. "
-    "Test by running: result = get_rubric_run_result_tool(fn_code_string, train). "
-    "Submit by running: answer['content'] = fn_code_string; answer['ready'] = True. "
-    "Any deviation or failure should lead to returning 0.0."
+    "Write rubric_fn(input_text: str, response: str) -> float (0–1).\n\n"
+    f"REPL: {TASK_FILE} has `hint` and `train` [{{input, response, score}}].\n"
+    "1) Test in the REPL: get_rubric_run_result_tool(fn_code_string, train).\n"
+    "2) **Required** — Submit in the REPL so your run is scored: set answer and mark ready in the same session:\n"
+    "   answer['content'] = fn_code_string  # or the string of your rubric code\n"
+    "   answer['ready'] = True\n"
+    "If you never execute the line answer['ready'] = True in the REPL, the run gets reward 0 (no rubric is recorded)."
 )
 
 SYSTEM_PROMPT = (
-    "Single Python REPL: your code, tools, and rubric_fn run here; task.json = hint + train. "
-    "get_rubric_run_result_tool is preloaded — call it directly and do NOT import, redefine, or shadow it. "
-    "Tool calls and submissions take effect only when you execute the corresponding Python code in the REPL "
-    "(e.g. answer['content'] = fn_code_string; answer['ready'] = True). "
-    "Use only the Python standard library; no external network, non-stdlib modules, or side-effecting I/O. "
-    "On any error or exception, return 0.0."
+    "Rubric from examples. REPL: task.json → hint, train. "
+    "Test with get_rubric_run_result_tool(fn_code_string, train). "
+    "You must finish by executing in the REPL: answer['content'] = <rubric_code>; answer['ready'] = True — otherwise no reward is computed. "
+    "Stdlib only; return 0.0 on error."
 )
 
 def task_from_row(row: Info, cfg) -> dict:
