@@ -48,10 +48,33 @@ class Config:
     dataset_path: str = "data.jsonl"
     rlm_model: str = "gpt-4.1-mini"
     max_turns: int = 10
+    sub_llm_max_turns: int = 5
+    sub_max_completion_tokens: int | None = None
+    root_max_completion_tokens: int | None = None
     max_examples: int | None = None
     timeout_s: int = 30
     margin: float = 0.3
     parallelism: int = 5
+    # RLMEnv configuration
+    repl_language: str = "python"
+    sub_prompt_verbosity: str = "light"
+    root_prompt_verbosity: str = "light"
+    max_output_length: int = 8192
+    pip_install_packages: str = ""
+    include_sub_llm_in_trajectory: bool = True
+    context_warning_threshold: float = 0.80
+    max_startup_wait_seconds: int = 120
+    abort_on_code_timeout: bool = False
+    expose_message_history: bool = False
+    retain_filesystem_after_rollout: bool = False
+    sandbox_docker_image: str = "python:3.11-slim"
+    sandbox_cpu_cores: int = 1
+    sandbox_memory_gb: int = 2
+    sandbox_disk_size_gb: int = 5
+    sandbox_gpu_count: int = 0
+    sandbox_timeout_minutes: int = 60
+    sandbox_environment_vars: dict[str, str] | None = None
+    sandbox_labels: list[str] | None = None
     # Dataset / context layout
     max_train_per_task: int | None = None
     max_test_per_task: int | None = None
@@ -240,7 +263,15 @@ def load_environment(config: Config | dict | None = None) -> vf.Environment:
     if not path.exists():
         raise FileNotFoundError(path)
 
-    rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    # Stream JSONL rows to keep memory usage bounded and allow early stopping.
+    rows: list[dict] = []
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            rows.append(json.loads(line))
+            if cfg.max_examples is not None and len(rows) >= cfg.max_examples:
+                break
     stage_dir = path.parent / cfg.context_dir_name
     dataset = build_dataset(rows, cfg, stage_dir)
 
@@ -255,13 +286,33 @@ def load_environment(config: Config | dict | None = None) -> vf.Environment:
     return RLMEnv(
         dataset=dataset,
         rubric=rubric,
-        repl_language="python",
-        system_prompt=SYSTEM_PROMPT,
+        repl_language=cfg.repl_language,
+        system_prompt=cfg.system_prompt if hasattr(cfg, "system_prompt") else SYSTEM_PROMPT,
         max_iterations=cfg.max_turns,
         sub_model=cfg.rlm_model,
-        code_execution_timeout=cfg.timeout_s,
+        sub_llm_max_turns=cfg.sub_llm_max_turns,
+        sub_max_completion_tokens=cfg.sub_max_completion_tokens,
+        root_max_completion_tokens=cfg.root_max_completion_tokens,
+        sub_prompt_verbosity=cfg.sub_prompt_verbosity,
+        root_prompt_verbosity=cfg.root_prompt_verbosity,
+        max_output_length=cfg.max_output_length,
         max_sub_llm_parallelism=cfg.parallelism,
+        pip_install_packages=cfg.pip_install_packages,
+        context_warning_threshold=cfg.context_warning_threshold,
+        max_startup_wait_seconds=cfg.max_startup_wait_seconds,
+        code_execution_timeout=cfg.timeout_s,
+        abort_on_code_timeout=cfg.abort_on_code_timeout,
+        expose_message_history=cfg.expose_message_history,
+        retain_filesystem_after_rollout=cfg.retain_filesystem_after_rollout,
+        sandbox_docker_image=cfg.sandbox_docker_image,
+        sandbox_cpu_cores=cfg.sandbox_cpu_cores,
+        sandbox_memory_gb=cfg.sandbox_memory_gb,
+        sandbox_disk_size_gb=cfg.sandbox_disk_size_gb,
+        sandbox_gpu_count=cfg.sandbox_gpu_count,
+        sandbox_timeout_minutes=cfg.sandbox_timeout_minutes,
+        sandbox_environment_vars=cfg.sandbox_environment_vars,
+        sandbox_labels=cfg.sandbox_labels,
         root_tools=[get_rubric_run_result_tool],
-        include_sub_llm_in_trajectory=True,
+        include_sub_llm_in_trajectory=cfg.include_sub_llm_in_trajectory,
         env_id="discover_gsm8k",
     )
