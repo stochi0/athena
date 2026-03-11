@@ -21,12 +21,12 @@ from pathlib import Path
 
 import verifiers as vf
 from typing_extensions import TypedDict
-from datasets import Dataset
 from verifiers.envs.experimental.rlm_env import RLMEnv
 from verifiers.types import Info, State
 
 from core.rubric_execution import RubricExecutionService
 from core.types import EvalSample
+from core.context_builder import SYSTEM_PROMPT, build_dataset
 
 
 # Tool schema TypedDict (includes num_examples for REPL)
@@ -79,19 +79,6 @@ def rubric_code_from_state(state: State) -> str:
     if isinstance(final, str) and final.strip():
         return final.strip()
     return ""
-
-
-def _parse_answer_raw(raw: str | dict) -> dict:
-    """Parse state['answer'] into a dict (handles JSON string or dict). Used for test_examples from dataset row."""
-    if isinstance(raw, dict):
-        return raw
-    if not isinstance(raw, str):
-        return {}
-    try:
-        data = json.loads(raw)
-        return data if isinstance(data, dict) else {}
-    except json.JSONDecodeError:
-        return {}
 
 
 # ---------------------------------------------------------------------------
@@ -235,55 +222,8 @@ async def get_rubric_run_result_tool(
 # ---------------------------------------------------------------------------
 # Dataset
 # ---------------------------------------------------------------------------
-
-TASK_FILE = "task.json"
-
-_PROMPT = (
-    "Write rubric_fn(input_text: str, response: str) -> float (0–1).\n\n"
-    f"REPL: {TASK_FILE} has `hint` and `train` [{{input, response, score}}].\n"
-    "Test: get_rubric_run_result_tool(fn_code_string, train). Submit: answer['content'] = fn_code_string; answer['ready'] = True."
-)
-
-_SYSTEM = (
-    "Rubric from examples. REPL: task.json → hint, train. Test with get_rubric_run_result_tool(fn_code_string, examples). "
-    "Submit: answer['content'] = fn_code_string, answer['ready'] = True. Stdlib only; return 0.0 on error."
-)
-
-
-def _task_from_row(row: Info, cfg: Config) -> dict:
-    train = [
-        {"input": str(ex["input"]), "response": str(ex["response"]), "score": float(ex.get("score", 0.0))}
-        for ex in (row.get("train_examples") or [])
-        if isinstance(ex, dict)
-    ]
-    if cfg.max_train_per_task is not None:
-        train = train[: cfg.max_train_per_task]
-    return {"hint": row.get("task_hint", "Infer the scoring rule from examples."), "train": train}
-
-
-def build_dataset(rows: list[Info], cfg: Config, stage_dir: Path) -> Dataset:
-    """One row → one context dir → one task.json (flat {hint, train})."""
-    stage_dir.mkdir(parents=True, exist_ok=True)
-    records = []
-    for i, row in enumerate(rows):
-        if cfg.max_examples is not None and i >= cfg.max_examples:
-            break
-        ctx = stage_dir / str(i)
-        ctx.mkdir(exist_ok=True)
-        (ctx / TASK_FILE).write_text(json.dumps(_task_from_row(row, cfg)), encoding="utf-8")
-        test = list(row.get("test_examples") or [])
-        if cfg.max_test_per_task is not None:
-            test = test[: cfg.max_test_per_task]
-        records.append(
-            {
-                "prompt": [{"role": "user", "content": _PROMPT}],
-                "answer": json.dumps({"test_examples": test}, separators=(",", ":")),
-                "task": "discover_gsm8k",
-                "example_id": i,
-                "info": {"context_dir": str(ctx.resolve())},
-            }
-        )
-    return Dataset.from_list(records)
+#
+# Context building is separated into `core/context_builder.py` (prompt + dataset staging).
 
 
 # ---------------------------------------------------------------------------
@@ -308,15 +248,15 @@ def load_environment(config: Config | dict | None = None) -> vf.Environment:
     rubric.add_metric(spearman_metric)
     rubric.add_class_object("cfg", cfg)
 
-    global _current_cfg, _rubric_service
+    global _current_cfg
     _current_cfg = cfg
-    _rubric_service = _get_rubric_service(cfg)
+    _get_rubric_service(cfg)
 
     return RLMEnv(
         dataset=dataset,
         rubric=rubric,
         repl_language="python",
-        system_prompt=_SYSTEM,
+        system_prompt=SYSTEM_PROMPT,
         max_iterations=cfg.max_turns,
         sub_model=cfg.rlm_model,
         code_execution_timeout=cfg.timeout_s,
