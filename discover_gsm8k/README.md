@@ -18,7 +18,7 @@ Learn a scoring function `rubric_fn(input_text, response) -> float` from `(input
 Set `PRIME_API_KEY` for sandbox-backed runs, then:
 
 ```bash
-prime eval run discover-gsm8k -m gpt-4.1-mini -a '{"dataset_path": "data.jsonl"}'
+prime eval run discover-gsm8k -m gpt-4.1-mini -a '{"dataset_path": "data/data.jsonl"}'
 ```
 
 ### Run (from `discover_gsm8k/`)
@@ -26,20 +26,28 @@ prime eval run discover-gsm8k -m gpt-4.1-mini -a '{"dataset_path": "data.jsonl"}
 ```bash
 cd discover_gsm8k
 uv sync
-uv run prime eval run discover-gsm8k -a '{"dataset_path": "data.jsonl"}'
+uv run prime eval run discover-gsm8k -a '{"dataset_path": "data/data.jsonl"}'
 ```
 
 ## Config
 
 `load_environment(config)` accepts a dict (or `Config`) with:
 
-- **`dataset_path`** (`str`, required): path to JSONL
+- **`dataset_path`** (`str`, required): path to JSONL (e.g. `data/data.jsonl`)
+- **`max_train_per_task`** (`int | None`, default `10`): max train `(input, response, score)` examples per task in `contexts/<i>/task.json`; use `None` to use all
+- **`max_test_per_task`** (`int | None`, default `5`): max test examples per task (in state for reward); use `None` to use all
 - **`rlm_model`** (`str`, default `"gpt-4.1-mini"`): sub-LLM for RLM
 - **`max_turns`** (`int`, default `10`): max RLM iterations
-- **`max_examples`** (`int | None`, default `None`): cap dataset size
+- **`max_examples`** (`int | None`, default `None`): cap number of tasks (rows)
 - **`timeout_s`** (`int`, default `30`): code execution timeout
 - **`margin`** (`float`, default `0.3`): agreement threshold \(|pred - expected| \le margin\)
 - **`parallelism`** (`int`, default `5`): max parallel sub-LLM calls
+
+Example: limit contexts to 3 train and 2 test per task:
+
+```bash
+prime eval run discover-gsm8k -a '{"dataset_path": "data/data.jsonl", "max_train_per_task": 3, "max_test_per_task": 2}'
+```
 
 ## Data format
 
@@ -48,6 +56,12 @@ JSONL rows contain:
 - **`train_examples`**: list of `{ input, response, score }`
 - **`test_examples`**: list of `{ input, response, score }`
 - **`task_hint`** (optional): string
+
+To generate data with controlled train/test sizes:
+
+```bash
+uv run python scripts/generate_dataset.py --out data/data.jsonl --n 20 --train-per-task 5 --test-per-task 3
+```
 
 ## Development
 

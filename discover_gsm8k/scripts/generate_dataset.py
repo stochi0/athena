@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Generate rubric-discovery dataset (data.json / data.jsonl) from a source env.
+"""Generate rubric-discovery dataset (data/data.jsonl) from a source env.
 
-  uv run python scripts/generate_dataset.py --out data.json
-  uv run python scripts/generate_dataset.py --out data.jsonl --n 50
+  uv run python scripts/generate_dataset.py --out data/data.jsonl --n 50
+  uv run python scripts/generate_dataset.py --out data/data.jsonl --train-per-task 5 --test-per-task 3
 """
 
 from __future__ import annotations
@@ -99,6 +99,8 @@ async def run(
     n: int = 50,
     responses_per_example: int = 4,
     train_ratio: float = 0.6,
+    train_per_task: int | None = None,
+    test_per_task: int | None = None,
     task_hint: str = "Score whether the final numeric answer is correct.",
     model: str = "openai/gpt-4.1-mini",
     temperatures: list[float] | None = None,
@@ -149,6 +151,12 @@ async def run(
         train, test = scored[:split], scored[split:]
         if not test:
             continue
+        if train_per_task is not None:
+            train = train[:train_per_task]
+        if test_per_task is not None:
+            test = test[:test_per_task]
+        if not train or not test:
+            continue
         out.append({"task_hint": task_hint.strip(), "train_examples": train, "test_examples": test})
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -165,11 +173,25 @@ async def run(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate rubric-discovery data.json / data.jsonl")
-    parser.add_argument("--out", default="data.json", help="Output path (.json = array, .jsonl = lines)")
+    parser.add_argument("--out", default="data/data.jsonl", help="Output path (.json = array, .jsonl = lines)")
     parser.add_argument("--source-env", default="primeintellect/gsm8k", help="Source env (get_dataset + rubric)")
     parser.add_argument("--n", type=int, default=50, help="Number of source examples")
     parser.add_argument("--responses-per-example", type=int, default=4)
     parser.add_argument("--train-ratio", type=float, default=0.6)
+    parser.add_argument(
+        "--train-per-task",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Cap train (input, response, score) examples per row; default no cap",
+    )
+    parser.add_argument(
+        "--test-per-task",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Cap test (input, response, score) examples per row; default no cap",
+    )
     parser.add_argument("--task-hint", default="Score whether the final numeric answer is correct.")
     parser.add_argument("--model", default="openai/gpt-4.1-mini")
     parser.add_argument("--temperatures", default="0,0.5,1.0,1.5", help="Comma-separated")
@@ -197,6 +219,8 @@ def main() -> None:
             n=args.n,
             responses_per_example=args.responses_per_example,
             train_ratio=args.train_ratio,
+            train_per_task=args.train_per_task,
+            test_per_task=args.test_per_task,
             task_hint=args.task_hint,
             model=args.model,
             temperatures=temps[:args.responses_per_example],

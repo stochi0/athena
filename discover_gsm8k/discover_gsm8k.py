@@ -9,8 +9,14 @@ tested against train via get_rubric_run_result.
 Reward = test-set agreement rate. Metric = Spearman(predicted, GT).
 
 Usage:
-    env = load_environment({"dataset_path": "data.jsonl"})
-    prime eval run discover-gsm8k -m gpt-4.1-mini
+    env = load_environment({"dataset_path": "data/data.jsonl"})
+    # Optional: cap train/test examples per task in contexts dir
+    env = load_environment({
+        "dataset_path": "data/data.jsonl",
+        "max_train_per_task": 5,
+        "max_test_per_task": 3,
+    })
+    prime eval run discover-gsm8k -m gpt-4.1-mini -a '{"max_train_per_task": 5, "max_test_per_task": 3}'
 """
 
 from __future__ import annotations
@@ -45,7 +51,7 @@ class RubricRunResult(TypedDict, total=False):
 
 @dataclass(frozen=True)
 class Config:
-    dataset_path: str = "data.jsonl"
+    dataset_path: str = "data/data.jsonl"
     rlm_model: str = "gpt-4.1-mini"
     max_turns: int = 100
     repl_language: str = "python"
@@ -56,9 +62,9 @@ class Config:
     timeout_s: int = 30
     margin: float = 0.3
     parallelism: int = 5
-    # Dataset / context layout
-    max_train_per_task: int | None = None
-    max_test_per_task: int | None = None
+    # Dataset / context layout: cap (input, response, score) examples per task in contexts dir
+    max_train_per_task: int | None = 2  # max train examples in task.json per context
+    max_test_per_task: int | None = 5   # max test examples in state["answer"] per task
     context_dir_name: str = "contexts"
 
     @classmethod
@@ -235,8 +241,14 @@ async def get_rubric_run_result_tool(
 # ---------------------------------------------------------------------------
 
 
-def load_environment(config: Config | dict | None = None) -> vf.Environment:
-    cfg = Config.from_input(config)
+def load_environment(config: Config | dict | None = None, **kwargs) -> vf.Environment:
+    """Load env. Accepts config dict or kwargs (e.g. dataset_path=...) for prime eval -a."""
+    if isinstance(config, Config):
+        cfg = config
+    else:
+        merged = dict(config) if isinstance(config, dict) else {}
+        merged.update(kwargs)
+        cfg = Config.from_input(merged if merged else None)
     if not cfg.dataset_path:
         raise ValueError("dataset_path required")
 
