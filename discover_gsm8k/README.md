@@ -34,10 +34,10 @@ uv run prime eval run discover-gsm8k -a '{"dataset_path": "data/data.jsonl"}'
 `load_environment(config)` accepts a dict (or `Config`) with:
 
 - `**dataset_path**` (`str`, required): path to JSONL (e.g. `data/data.jsonl`)
-- `**max_train_per_task**` (`int | None`, default `10`): max train `(input, response, score)` examples per task in `contexts/<i>/task.json`; use `None` to use all
+- `**max_train_per_task**` (`int | None`, default `2`): max train `(input, response, score)` examples per task in `contexts/<i>/task.json`; use `None` to use all
 - `**max_test_per_task**` (`int | None`, default `5`): max test examples per task (in state for reward); use `None` to use all
 - `**rlm_model**` (`str`, default `"gpt-4.1-mini"`): sub-LLM for RLM
-- `**max_turns**` (`int`, default `10`): max RLM iterations
+- `**max_turns**` (`int`, default `100`): max RLM iterations
 - `**max_examples**` (`int | None`, default `None`): cap number of tasks (rows)
 - `**timeout_s**` (`int`, default `30`): code execution timeout
 - `**margin**` (`float`, default `0.3`): agreement threshold |pred - expected| \le margin
