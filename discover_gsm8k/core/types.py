@@ -1,4 +1,4 @@
-"""RL eval types: sample (input/response/score), result (reward + per-sample)."""
+"""RL eval types: sample (prompt/completion/score), result (reward + per-sample). Aligned with verifiers: prompt = input text, completion = model output text."""
 
 from __future__ import annotations
 
@@ -6,9 +6,9 @@ from typing_extensions import TypedDict
 
 
 class EvalSample(TypedDict):
-    """One (input, response, score) for rubric eval."""
-    input: str
-    response: str
+    """One (prompt, completion, score) for rubric eval. Matches verifiers State naming (string form)."""
+    prompt: str
+    completion: str
     score: float
 
 

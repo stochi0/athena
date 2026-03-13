@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
-"""Generate rubric-discovery dataset (data/data.jsonl) from one or more source envs.
+"""Generate rubric-discovery dataset from source envs. Config is YAML only.
 
-Single env (CLI):
-  uv run scripts/generate_dataset.py --out data/data.jsonl --n 50
-  uv run scripts/generate_dataset.py --source-env arcee-ai/ifeval --out data3.jsonl --train-per-task 3 --test-per-task 2
-
-Multiple envs (YAML):
   uv run scripts/generate_dataset.py --config config/envs.yaml
   uv run scripts/generate_dataset.py --config config/envs.yaml --out data/mixed.jsonl
 
-YAML schema: out, model, seed, responses_per_example, train_ratio, temperatures, provider; envs: list of
-  { source_env, n?, train_per_task?, test_per_task?, task_hint?, seed?, responses_per_example?, train_ratio?, temperatures? }
+YAML: out, model, seed, responses_per_example, train_ratio, temperatures, provider; envs: list of
+  { source_env, n?, train_per_task?, test_per_task?, ... }
+  Rows use verifiers RolloutInput shape: prompt (Messages), answer, task, etc.
 """
 
 from __future__ import annotations
@@ -30,27 +26,22 @@ import verifiers as vf
 
 load_dotenv()
 
-QUESTION_KEYS = ("prompt", "question", "input", "problem", "instruction")
 
-
-def _question(row: dict[str, Any]) -> str | None:
-    p = row.get("prompt")
-    if isinstance(p, str) and p.strip():
-        return p.strip()
-    if isinstance(p, list):
-        for m in p:
+def extract_question(row: dict[str, Any]) -> str | None:
+    """Get question text from row. Verifiers RolloutInput uses 'prompt' (Messages). Handles string or list-of-messages."""
+    val = row.get("prompt")
+    if isinstance(val, str) and val.strip():
+        return val.strip()
+    if isinstance(val, list):
+        for m in val:
             if isinstance(m, dict) and m.get("role") == "user":
                 c = m.get("content")
                 if isinstance(c, str) and c.strip():
                     return c.strip()
-    for k in QUESTION_KEYS:
-        v = row.get(k)
-        if isinstance(v, str) and v.strip():
-            return v.strip()
     return None
 
 
-async def _score_one(
+async def score_one(
     env: vf.Environment,
     prompt: list[dict],
     completion: str,
@@ -72,7 +63,7 @@ async def _score_one(
     return float(r) if r is not None else 0.0
 
 
-async def _completion(client: Any, question: str, model: str, temperature: float, max_tokens: int = 512) -> str:
+async def call_completion(client: Any, question: str, model: str, temperature: float, max_tokens: int = 512) -> str:
     r = await client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": question}],
@@ -100,26 +91,26 @@ def get_provider_config(args: argparse.Namespace) -> dict:
     )
 
 
-def _parse_temperatures(s: str) -> list[float]:
+def parse_temperatures(s: str) -> list[float]:
     if not isinstance(s, str) or not s.strip():
         return [0.0, 0.5, 1.0, 1.5]
     return [float(x.strip()) for x in s.split(",") if x.strip()]
 
 
-_DEFAULT_TEMPS = [0.0, 0.5, 1.0, 1.5]
+DEFAULT_TEMPERATURES = [0.0, 0.5, 1.0, 1.5]
 
 
-def _ensure_temperatures(temperatures: list[float], responses_per_example: int) -> list[float]:
+def ensure_temperatures(temperatures: list[float], responses_per_example: int) -> list[float]:
     """Ensure we have at least responses_per_example temperatures (pad from default if needed)."""
     if len(temperatures) >= responses_per_example:
         return temperatures[:responses_per_example]
     out = list(temperatures)
     while len(out) < responses_per_example:
-        out.append(_DEFAULT_TEMPS[len(out) % len(_DEFAULT_TEMPS)])
+        out.append(DEFAULT_TEMPERATURES[len(out) % len(DEFAULT_TEMPERATURES)])
     return out
 
 
-def _validate_run_params(
+def validate_run_params(
     *,
     responses_per_example: int,
     train_ratio: float,
@@ -169,14 +160,14 @@ async def run(
     api_base_url: str = "https://api.pinference.ai/api/v1",
     write_output: bool = True,
 ) -> list[dict[str, Any]]:
-    _validate_run_params(
+    validate_run_params(
         responses_per_example=responses_per_example,
         train_ratio=train_ratio,
         train_per_task=train_per_task,
         test_per_task=test_per_task,
     )
-    temperatures = _ensure_temperatures(
-        temperatures or _DEFAULT_TEMPS, responses_per_example
+    temperatures = ensure_temperatures(
+        temperatures or DEFAULT_TEMPERATURES, responses_per_example
     )
 
     vf.ensure_keys([api_key_var])
@@ -200,7 +191,7 @@ async def run(
 
     for raw in rows:
         row = dict(raw)
-        question = _question(row)
+        question = extract_question(row)
         if not question:
             continue
         answer = row.get("answer", "")
@@ -211,11 +202,11 @@ async def run(
 
         scored = []
         for t in temps:
-            text = await _completion(client, question, model, t)
+            text = await call_completion(client, question, model, t)
             if not text.strip():
                 continue
-            score = await _score_one(env, prompt_list, text, answer, info, task)
-            scored.append({"input": question[:2000], "response": text[:4000], "score": round(float(score), 4)})
+            score = await score_one(env, prompt_list, text, answer, info, task)
+            scored.append({"prompt": question[:2000], "completion": text[:4000], "score": round(float(score), 4)})
 
         if len(scored) < 2:
             continue
@@ -244,7 +235,7 @@ async def run(
     return out
 
 
-async def _run_from_yaml(config_path: Path, out_override: Path | None) -> None:
+async def run_from_yaml(config_path: Path, out_override: Path | None) -> None:
     with config_path.open("r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f) or {}
     envs = cfg.get("envs") or []
@@ -284,11 +275,11 @@ async def _run_from_yaml(config_path: Path, out_override: Path | None) -> None:
         env_seed = int(env_cfg.get("seed", seed))
         env_responses = int(env_cfg.get("responses_per_example", responses_per_example))
         env_train_ratio = float(env_cfg.get("train_ratio", train_ratio))
-        env_temps = _ensure_temperatures(
-            _parse_temperatures(env_cfg.get("temperatures", temps_str)),
+        env_temps = ensure_temperatures(
+            parse_temperatures(env_cfg.get("temperatures", temps_str)),
             env_responses,
         )
-        _validate_run_params(
+        validate_run_params(
             responses_per_example=env_responses,
             train_ratio=env_train_ratio,
             train_per_task=train_per_task,
@@ -326,71 +317,16 @@ async def _run_from_yaml(config_path: Path, out_override: Path | None) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate rubric-discovery data.json / data.jsonl")
-    parser.add_argument("--config", "-c", help="YAML config: multiple source envs (envs list + defaults); ignores other CLI env flags")
-    parser.add_argument("--out", "-o", default="data/data.jsonl", help="Output path (.json = array, .jsonl = lines)")
-    parser.add_argument("--source-env", default="primeintellect/gsm8k", help="Source env (get_dataset + rubric)")
-    parser.add_argument("--n", type=int, default=50, help="Number of source examples")
-    parser.add_argument("--responses-per-example", type=int, default=4)
-    parser.add_argument("--train-ratio", type=float, default=0.6)
-    parser.add_argument(
-        "--train-per-task",
-        type=int,
-        default=2,
-        metavar="N",
-        help="Cap train examples per row; must be <= floor(responses_per_example*train_ratio); default 2",
-    )
-    parser.add_argument(
-        "--test-per-task",
-        type=int,
-        default=2,
-        metavar="N",
-        help="Cap test examples per row; must be <= remainder after train split; default 2",
-    )
-    parser.add_argument("--task-hint", default="Score whether the final numeric answer is correct.")
-    parser.add_argument("--model", default="openai/gpt-4.1-mini")
-    parser.add_argument("--temperatures", default="0,0.5,1.0,1.5", help="Comma-separated")
-    parser.add_argument("--seed", type=int, default=42)
-    # Provider flags
-    parser.add_argument("--prime", action="store_true", help="Use Prime Inference (default)")
-    parser.add_argument("--openrouter", action="store_true", help="Use OpenRouter")
-    parser.add_argument("--openai", action="store_true", help="Use OpenAI")
-
+    parser = argparse.ArgumentParser(description="Generate rubric-discovery dataset from YAML config")
+    parser.add_argument("--config", "-c", required=True, help="Path to YAML config (envs + defaults)")
+    parser.add_argument("--out", "-o", default=None, help="Override output path from config")
     args = parser.parse_args()
 
-    if args.config:
-        config_path = Path(args.config)
-        if not config_path.exists():
-            raise SystemExit(f"Config not found: {config_path}")
-        out_override = Path(args.out) if args.out != "data/data.jsonl" else None
-        asyncio.run(_run_from_yaml(config_path, out_override))
-        return
-
-    provider_cfg = get_provider_config(args)
-    api_key_var = provider_cfg["api_key_var"]
-    api_base_url = provider_cfg["api_base_url"]
-
-    temps = _parse_temperatures(args.temperatures)
-    if not temps:
-        temps = [0.0, 0.5, 1.0, 1.5]
-
-    asyncio.run(
-        run(
-            args.source_env,
-            Path(args.out),
-            n=args.n,
-            responses_per_example=args.responses_per_example,
-            train_ratio=args.train_ratio,
-            train_per_task=args.train_per_task,
-            test_per_task=args.test_per_task,
-            task_hint=args.task_hint,
-            model=args.model,
-            temperatures=temps[: args.responses_per_example],
-            seed=args.seed,
-            api_key_var=api_key_var,
-            api_base_url=api_base_url,
-        )
-    )
+    config_path = Path(args.config)
+    if not config_path.exists():
+        raise SystemExit(f"Config not found: {config_path}")
+    out_override = Path(args.out) if args.out else None
+    asyncio.run(run_from_yaml(config_path, out_override))
 
 
 if __name__ == "__main__":

@@ -2,9 +2,9 @@
 GSM8K rubric-discovery environment.
 
 Each JSONL row: {train_examples, test_examples, task_hint?}
-Each example:   {input, response, score}
+Each example:   {prompt, completion, score}  (aligned with verifiers naming)
 
-Model writes rubric_fn(input_text, response) -> float in the REPL,
+Model writes rubric_fn(prompt, completion) -> float in the REPL,
 tested against train via get_rubric_run_result.
 Reward = test-set agreement rate. Metric = Spearman(predicted, GT).
 
@@ -62,7 +62,7 @@ class Config:
     timeout_s: int = 30
     margin: float = 0.3
     parallelism: int = 5
-    # Dataset / context layout: cap (input, response, score) examples per task in contexts dir
+    # Dataset / context layout: cap (prompt, completion, score) examples per task in contexts dir
     max_train_per_task: int | None = 2  # max train examples in task.json per context
     max_test_per_task: int | None = 5   # max test examples in state["answer"] per task
     context_dir_name: str = "contexts"
@@ -120,12 +120,12 @@ def get_test_examples(state: State) -> list[Info]:
         return []
     return [
         {
-            "input": str(ex["input"]),
-            "response": str(ex["response"]),
+            "prompt": str(ex["prompt"]),
+            "completion": str(ex["completion"]),
             "score": float(ex.get("score", 0.0)),
         }
         for ex in (data.get("test_examples") or [])
-        if isinstance(ex, dict) and "input" in ex and "response" in ex
+        if isinstance(ex, dict) and "prompt" in ex and "completion" in ex
     ]
 
 

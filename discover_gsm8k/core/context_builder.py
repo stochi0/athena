@@ -10,8 +10,8 @@ from verifiers.types import Info
 TASK_FILE = "task.json"
 
 PROMPT = (
-    "Write rubric_fn(input_text: str, response: str) -> float (0–1).\n\n"
-    f"REPL: {TASK_FILE} has `hint` and `train` [{{input, response, score}}].\n"
+    "Write rubric_fn(prompt: str, completion: str) -> float (0–1).\n\n"
+    f"REPL: {TASK_FILE} has `hint` and `train` [{{prompt, completion, score}}].\n"
     "1) Test in the REPL: get_rubric_run_result_tool(fn_code_string, train).\n"
     "2) **Required** — Submit in the REPL so your run is scored: set answer and mark ready in the same session:\n"
     "   answer['content'] = fn_code_string  # or the string of your rubric code\n"
@@ -29,12 +29,12 @@ SYSTEM_PROMPT = (
 def task_from_row(row: Info, cfg) -> dict:
     train = [
         {
-            "input": str(ex["input"]),
-            "response": str(ex["response"]),
+            "prompt": str(ex["prompt"]),
+            "completion": str(ex["completion"]),
             "score": float(ex.get("score", 0.0)),
         }
         for ex in (row.get("train_examples") or [])
-        if isinstance(ex, dict)
+        if isinstance(ex, dict) and "prompt" in ex and "completion" in ex
     ]
     if cfg.max_train_per_task is not None:
         train = train[: cfg.max_train_per_task]

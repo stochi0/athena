@@ -1,10 +1,11 @@
 """Isolated subprocess entry-point for evaluating a candidate `rubric_fn`.
 
 Run as:  python -m core.rubric_execution.subprocess_runner
-Stdin:   JSON {"code": <str>, "examples": [{"input", "response", "score"}, ...], "margin": <float?>}
+Stdin:   JSON {"code": <str>, "examples": [{"prompt", "completion", "score"}, ...], "margin": <float?>}
 Stdout:  JSON {"rubric_agreement_rate", "scores", "correct"[, "error"]}
 
 Standalone: no imports from core so the same source can run in a sandbox.
+Naming aligned with verifiers: prompt = input text, completion = model output text.
 """
 
 from __future__ import annotations
@@ -43,14 +44,14 @@ def run(data: dict) -> dict:
     scores: list[float] = []
     correct: list[bool] = []
     for ex in examples:
-        inp = str(ex.get("input", ""))
-        resp = str(ex.get("response", ""))
+        prompt_str = str(ex.get("prompt", ""))
+        completion_str = str(ex.get("completion", ""))
         try:
             gt = float(ex.get("score", 0.0))
         except (TypeError, ValueError):
             gt = 0.0
         try:
-            s = float(fn(inp, resp))  # type: ignore[misc]
+            s = float(fn(prompt_str, completion_str))  # type: ignore[misc]
             s = max(0.0, min(1.0, s))  # clamp to [0, 1]
             scores.append(s)
             correct.append(abs(s - gt) <= margin + MARGIN_EPSILON)
