@@ -2,7 +2,7 @@
 
 Rubric-discovery environment for GSM8K.
 
-Learn a scoring function `rubric_fn(input_text, response) -> float` from `(input, response, score)` examples. Evaluation is on held-out test examples (agreement rate; Spearman vs GT).
+Learn a scoring function `rubric_fn(prompt, completion) -> float` from `(prompt, completion, score)` examples. Evaluation is on held-out test examples (agreement rate; Spearman vs GT).
 
 ## Overview
 
@@ -53,15 +53,67 @@ prime eval run discover-gsm8k -a '{"dataset_path": "data/data.jsonl", "max_train
 
 JSONL rows contain:
 
-- **`train_examples`**: list of `{ input, response, score }`
-- **`test_examples`**: list of `{ input, response, score }`
+- **`train_examples`**: list of `{ prompt, completion, score }`
+- **`test_examples`**: list of `{ prompt, completion, score }`
 - **`task_hint`** (optional): string
 
-To generate data with controlled train/test sizes:
+This matches the verifiers naming convention:
+
+- **`prompt`**: input text (what the model is asked to score / respond to)
+- **`completion`**: model output text being evaluated
+
+## Dataset generation
+
+Dataset rows can be generated from verifiers-based source environments using `scripts/generate_dataset.py` and a YAML config.
+
+### Requirements on source environments
+
+Assuming the environment is implemented on top of `verifiers` and can be loaded with `verifiers.load_environment(env_id)`:
+
+- **Dataset access**
+  - The env must implement either `get_dataset(n, seed)` or `get_eval_dataset(n, seed)`.
+  - Each dataset row must expose at least:
+    - `prompt`: either
+      - a string, or
+      - a list of messages like `[{ "role": "user", "content": "..."}, ...]` with at least one non-empty user message.
+    - Optionally `answer`, `task`, and `info` (used when building the scoring `State`).
+
+- **Rubric / scoring**
+  - The env must define a rubric such that `env.rubric.score_group([state])`:
+    - runs without error, and
+    - sets `state["reward"]` to a numeric score \([0, 1]\) for the `(prompt, completion, answer, info, task)` tuple.
+
+### YAML config (single or multiple source envs)
+
+Example (single env):
 
 ```bash
-uv run python scripts/generate_dataset.py --out data/data.jsonl --n 20 --train-per-task 5 --test-per-task 3
+uv run scripts/generate_dataset.py --config config/envs_gsm8k.yaml
+uv run scripts/generate_dataset.py --config config/envs_ifeval.yaml
 ```
+
+Example config (multiple envs in one file):
+
+```yaml
+out: data/mixed.jsonl
+
+envs:
+  - source_env: primeintellect/gsm8k
+    n: 50
+    train_per_task: 2
+    test_per_task: 2
+  - source_env: arcee-ai/ifeval
+    n: 50
+    train_per_task: 2
+    test_per_task: 2
+```
+
+For each `env` entry:
+
+- **`source_env`** (required): environment id string passed to `verifiers.load_environment`.
+- **`n`** (optional, default `50`): number of source examples to sample.
+- **`train_per_task`**, **`test_per_task`** (optional): caps on the number of train / test `(prompt, completion, score)` examples per JSONL row.
+- **`responses_per_example`**, **`train_ratio`**, **`temperatures`**, **`seed`**, **`task_hint`** (optional): advanced knobs; see `scripts/generate_dataset.py` for details and validation rules.
 
 ## Development
 
