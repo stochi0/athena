@@ -158,7 +158,6 @@ async def run(
     seed: int = 42,
     api_key_var: str = "PRIME_API_KEY",
     api_base_url: str = "https://api.pinference.ai/api/v1",
-    write_output: bool = True,
 ) -> list[dict[str, Any]]:
     validate_run_params(
         responses_per_example=responses_per_example,
@@ -186,6 +185,14 @@ async def run(
     rng = random.Random(seed)
     client = AsyncOpenAI(api_key=api_key, base_url=api_base_url)
     out: list[dict[str, Any]] = []
+
+    # For JSONL outputs we stream-append rows as they are generated.
+    # For .json outputs we keep the previous behavior (buffer then write once).
+    out_path_is_json = out_path.suffix == ".json"
+    out_file = None
+    if not out_path_is_json:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_file = out_path.open("a", encoding="utf-8")
 
     resolved_task_hint = (task_hint or source_env).strip()
 
@@ -221,16 +228,22 @@ async def run(
             test = test[:test_per_task]
         if not train or not test:
             continue
-        out.append({"task_hint": resolved_task_hint, "train_examples": train, "test_examples": test})
+        row_obj = {
+            "task_hint": resolved_task_hint,
+            "train_examples": train,
+            "test_examples": test,
+        }
+        out.append(row_obj)
+        if not out_path_is_json and out_file is not None:
+            out_file.write(json.dumps(row_obj, ensure_ascii=False) + "\n")
+            out_file.flush()
 
-    if write_output:
+    if out_file is not None:
+        out_file.close()
+
+    if out_path_is_json:
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        if out_path.suffix == ".json":
-            out_path.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
-        else:
-            with out_path.open("w", encoding="utf-8") as f:
-                for row in out:
-                    f.write(json.dumps(row, ensure_ascii=False) + "\n")
+        out_path.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"Wrote {len(out)} rows → {out_path}")
     return out
 
@@ -257,6 +270,11 @@ async def run_from_yaml(config_path: Path, out_override: Path | None) -> None:
     provider_cfg = get_provider_config(args)
     api_key_var = provider_cfg["api_key_var"]
     api_base_url = provider_cfg["api_base_url"]
+
+    # Truncate/initialize the output file once at the start so each env appends to a clean file.
+    final_out.parent.mkdir(parents=True, exist_ok=True)
+    # For JSONL we truncate to empty; for .json we also truncate and will rewrite in run() if used directly.
+    final_out.write_text("", encoding="utf-8")
 
     all_rows: list[dict[str, Any]] = []
     for i, env_cfg in enumerate(envs):
@@ -301,18 +319,9 @@ async def run_from_yaml(config_path: Path, out_override: Path | None) -> None:
             seed=env_seed,
             api_key_var=api_key_var,
             api_base_url=api_base_url,
-            write_output=False,
         )
         all_rows.extend(rows)
         print(f"  → {len(rows)} rows (total so far: {len(all_rows)})")
-
-    final_out.parent.mkdir(parents=True, exist_ok=True)
-    if final_out.suffix == ".json":
-        final_out.write_text(json.dumps(all_rows, ensure_ascii=False, indent=2), encoding="utf-8")
-    else:
-        with final_out.open("w", encoding="utf-8") as f:
-            for row in all_rows:
-                f.write(json.dumps(row, ensure_ascii=False) + "\n")
     print(f"Wrote {len(all_rows)} rows → {final_out}")
 
 

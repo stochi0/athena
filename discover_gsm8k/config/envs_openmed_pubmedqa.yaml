@@ -1,0 +1,10 @@
+# Generate ~50 rows for OpenMed PubMedQ → data/data_openmed_pubmedq.jsonl
+
+out: data/data_openmed_pubmedqa.jsonl
+
+envs:
+  - source_env: maziyar/OpenMed_PubMedQA
+    n: 50
+    train_per_task: 2
+    test_per_task: 2
+
