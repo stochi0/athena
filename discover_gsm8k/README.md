@@ -33,15 +33,15 @@ uv run prime eval run discover-gsm8k -a '{"dataset_path": "data/data.jsonl"}'
 
 `load_environment(config)` accepts a dict (or `Config`) with:
 
-- **`dataset_path`** (`str`, required): path to JSONL (e.g. `data/data.jsonl`)
-- **`max_train_per_task`** (`int | None`, default `10`): max train `(input, response, score)` examples per task in `contexts/<i>/task.json`; use `None` to use all
-- **`max_test_per_task`** (`int | None`, default `5`): max test examples per task (in state for reward); use `None` to use all
-- **`rlm_model`** (`str`, default `"gpt-4.1-mini"`): sub-LLM for RLM
-- **`max_turns`** (`int`, default `10`): max RLM iterations
-- **`max_examples`** (`int | None`, default `None`): cap number of tasks (rows)
-- **`timeout_s`** (`int`, default `30`): code execution timeout
-- **`margin`** (`float`, default `0.3`): agreement threshold \(|pred - expected| \le margin\)
-- **`parallelism`** (`int`, default `5`): max parallel sub-LLM calls
+- `**dataset_path**` (`str`, required): path to JSONL (e.g. `data/data.jsonl`)
+- `**max_train_per_task**` (`int | None`, default `10`): max train `(input, response, score)` examples per task in `contexts/<i>/task.json`; use `None` to use all
+- `**max_test_per_task**` (`int | None`, default `5`): max test examples per task (in state for reward); use `None` to use all
+- `**rlm_model**` (`str`, default `"gpt-4.1-mini"`): sub-LLM for RLM
+- `**max_turns**` (`int`, default `10`): max RLM iterations
+- `**max_examples**` (`int | None`, default `None`): cap number of tasks (rows)
+- `**timeout_s**` (`int`, default `30`): code execution timeout
+- `**margin**` (`float`, default `0.3`): agreement threshold |pred - expected| \le margin
+- `**parallelism**` (`int`, default `5`): max parallel sub-LLM calls
 
 Example: limit contexts to 3 train and 2 test per task:
 
@@ -53,14 +53,14 @@ prime eval run discover-gsm8k -a '{"dataset_path": "data/data.jsonl", "max_train
 
 JSONL rows contain:
 
-- **`train_examples`**: list of `{ prompt, completion, score }`
-- **`test_examples`**: list of `{ prompt, completion, score }`
-- **`task_hint`** (optional): string
+- `**train_examples**`: list of `{ prompt, completion, score }`
+- `**test_examples**`: list of `{ prompt, completion, score }`
+- `**task_hint**` (optional): string
 
 This matches the verifiers naming convention:
 
-- **`prompt`**: input text (what the model is asked to score / respond to)
-- **`completion`**: model output text being evaluated
+- `**prompt**`: input text (what the model is asked to score / respond to)
+- `**completion**`: model output text being evaluated
 
 ## Dataset generation
 
@@ -77,11 +77,10 @@ Assuming the environment is implemented on top of `verifiers` and can be loaded 
       - a string, or
       - a list of messages like `[{ "role": "user", "content": "..."}, ...]` with at least one non-empty user message.
     - Optionally `answer`, `task`, and `info` (used when building the scoring `State`).
-
 - **Rubric / scoring**
   - The env must define a rubric such that `env.rubric.score_group([state])`:
     - runs without error, and
-    - sets `state["reward"]` to a numeric score \([0, 1]\) for the `(prompt, completion, answer, info, task)` tuple.
+    - **sets** `state["reward"]` **to a numeric score [0, 1] for the** `(prompt, completion, answer, info, task)` tuple.
 
 ### YAML config (single or multiple source envs)
 
@@ -110,12 +109,13 @@ envs:
 
 For each `env` entry:
 
-- **`source_env`** (required): environment id string passed to `verifiers.load_environment`.
-- **`n`** (optional, default `50`): number of source examples to sample.
-- **`train_per_task`**, **`test_per_task`** (optional): caps on the number of train / test `(prompt, completion, score)` examples per JSONL row.
-- **`responses_per_example`**, **`train_ratio`**, **`temperatures`**, **`seed`**, **`task_hint`** (optional): advanced knobs; see `scripts/generate_dataset.py` for details and validation rules.
+- `**source_env**` (required): environment id string passed to `verifiers.load_environment`.
+- `**n**` (optional, default `50`): number of source examples to sample.
+- `**train_per_task**`, `**test_per_task**` (optional): caps on the number of train / test `(prompt, completion, score)` examples per JSONL row.
+- `**responses_per_example**`, `**train_ratio**`, `**temperatures**`, `**seed**`, `**task_hint**` (optional): advanced knobs; see `scripts/generate_dataset.py` for details and validation rules.
 
 ## Development
 
 - **Package manager**: `uv`
 - **Lint**: `ruff`
+
