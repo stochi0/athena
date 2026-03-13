@@ -1,0 +1,9 @@
+# Generate ~50 rows for IFEval → data/data_ifeval.jsonl
+
+out: data/data_ifeval.jsonl
+
+envs:
+  - source_env: arcee-ai/ifeval
+    n: 50
+    train_per_task: 2
+    test_per_task: 2

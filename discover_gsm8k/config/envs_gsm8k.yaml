@@ -1,0 +1,9 @@
+# Generate ~50 rows for GSM8K → data/data_gsm8k.jsonl
+
+out: data/data_gsm8k.jsonl
+
+envs:
+  - source_env: primeintellect/gsm8k
+    n: 50
+    train_per_task: 2
+    test_per_task: 2
