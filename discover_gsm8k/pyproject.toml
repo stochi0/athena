@@ -9,6 +9,7 @@ dependencies = [
     "verifiers",
     "datasets",
     "typing_extensions",
+    "pyyaml",
 ]
 
 [build-system]
