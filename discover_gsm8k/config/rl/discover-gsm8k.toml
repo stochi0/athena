@@ -15,9 +15,6 @@ rollouts_per_example = 1
 # Or use env_file (create secrets.env with OPENAI_API_KEY=<prime-key> and optionally OPENAI_BASE_URL=https://api.pinference.ai/api/v1):
 # env_file = ["secrets.env"]
 
-[sampling]
-max_tokens = 512
-
 [[env]]
 id = "stochi0/discover-gsm8k"
 args = { dataset_path = "data/data_mixed.jsonl", max_examples = 2 }
