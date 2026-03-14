@@ -12,4 +12,4 @@ rollouts_per_example = 1
 
 [[env]]
 id = "stochi0/discover-gsm8k"
-args = { dataset_path = "data/data.jsonl", max_examples = 2 }
+args = { dataset_path = "data/data_mixed.jsonl", max_examples = 2 }
