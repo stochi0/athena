@@ -1,0 +1,22 @@
+[project]
+name = "autoresearch"
+version = "0.1.0"
+description = "Autonomous LLM training research environment for Verifiers and prime-rl"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "verifiers",
+    "prime-sandboxes",
+    "datasets",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+include = ["autoresearch.py", "pyproject.toml", "README.md"]
+
+[tool.verifiers.eval]
+num_examples = 3
+rollouts_per_example = 1
