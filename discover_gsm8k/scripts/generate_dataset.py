@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate rubric-discovery dataset from source envs. Config is YAML only.
 
-  uv run scripts/generate_dataset.py --config config/envs.yaml
-  uv run scripts/generate_dataset.py --config config/envs.yaml --out data/mixed.jsonl
+  uv run scripts/generate_dataset.py --config config/data/envs_gsm8k.yaml
+  uv run scripts/generate_dataset.py --config config/data/envs_gsm8k.yaml --out data/mixed.jsonl
 
 YAML: out, model, seed, responses_per_example, train_ratio, temperatures, provider; envs: list of
   { source_env, n?, train_per_task?, test_per_task?, ... }

@@ -27,38 +27,3 @@ project = "discover-gsm8k"
 # Must be a W&B *team* (personal entities are disabled). Create/use a team at wandb.ai
 entity = "stochi-team"
 name = "qwen3-30b-i-discover-gsm8k-2ex"
-
-# [[env]] # add multiple [[env]] sections for multi-env training
-# id = "primeintellect/another-env"
-# args = { split = "train", max_examples = 1000 }
-
-# Optional: online evaluation
-# [eval]
-# interval = 100
-# # optional: default for all environments
-# num_examples = -1
-# rollouts_per_example = 1
-# eval_base_model = true
-#
-# [[eval.env]]
-# id = "primeintellect/discover-gsm8k"
-# args = { dataset_path = "data/data.jsonl" }
-# # environment-specific overrides
-# num_examples = 30
-# rollouts_per_example = 4
-
-# Optional: validation during training
-# [val]
-# num_examples = 64
-# rollouts_per_example = 1
-# interval = 5
-
-# Optional: buffer configuration for difficulty filtering
-# [buffer]
-# easy_threshold = 0.8
-# hard_threshold = 0.2
-# easy_fraction = 0.0
-# hard_fraction = 0.0
-# online_difficulty_filtering = false
-# env_ratios = [0.5, 0.5]
-# seed = 42

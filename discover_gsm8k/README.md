@@ -37,10 +37,10 @@ To run a minimal RL job on 2 examples via [Lab Hosted Training](https://docs.pri
    ```bash
    prime env push --path . -v PRIVATE
    ```
-2. In `config/rl_test_2examples.toml`, set `[[env]].id` to your Hub env (e.g. `YOUR_USERNAME/discover_gsm8k`).
+2. In `config/rl/discover-gsm8k.toml`, set `[[env]].id` to your Hub env (e.g. `YOUR_USERNAME/discover_gsm8k`).
 3. Start the run:
    ```bash
-   prime rl run config/rl_test_2examples.toml
+   prime rl run config/rl/discover-gsm8k.toml -e WANDB_API_KEY -e OPENAI_API_KEY
    ```
 
 The config uses `max_examples = 2`, `max_steps = 2`, and `batch_size = 2` for a quick smoke test.
@@ -103,8 +103,8 @@ Assuming the environment is implemented on top of `verifiers` and can be loaded 
 Example (single env):
 
 ```bash
-uv run scripts/generate_dataset.py --config config/envs_gsm8k.yaml
-uv run scripts/generate_dataset.py --config config/envs_ifeval.yaml
+uv run scripts/generate_dataset.py --config config/data/envs_gsm8k.yaml
+uv run scripts/generate_dataset.py --config config/data/envs_ifeval.yaml
 ```
 
 Example config (multiple envs in one file):
