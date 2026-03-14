@@ -252,7 +252,9 @@ def load_environment(config: Config | dict | None = None, **kwargs) -> vf.Enviro
     if not cfg.dataset_path:
         raise ValueError("dataset_path required")
 
-    path = Path(cfg.dataset_path)
+    # Resolve relative to this package root so it works when cwd is not the env root (e.g. RL orchestrator)
+    _env_root = Path(__file__).resolve().parent
+    path = _env_root / cfg.dataset_path
     if not path.exists():
         raise FileNotFoundError(path)
 

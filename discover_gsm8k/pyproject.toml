@@ -20,6 +20,7 @@ build-backend = "hatchling.build"
 only-include = [
     "discover_gsm8k.py",
     "core",
+    "data",
 ]
 
 [dependency-groups]
