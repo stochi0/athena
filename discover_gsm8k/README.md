@@ -29,6 +29,22 @@ uv sync
 uv run prime eval run discover-gsm8k -a '{"dataset_path": "data/data.jsonl"}'
 ```
 
+### Hosted RL (2-example smoke test)
+
+To run a minimal RL job on 2 examples via [Lab Hosted Training](https://docs.primeintellect.ai):
+
+1. Push the environment to the Hub (once):
+   ```bash
+   prime env push --path . -v PRIVATE
+   ```
+2. In `config/rl_test_2examples.toml`, set `[[env]].id` to your Hub env (e.g. `YOUR_USERNAME/discover_gsm8k`).
+3. Start the run:
+   ```bash
+   prime rl run config/rl_test_2examples.toml
+   ```
+
+The config uses `max_examples = 2`, `max_steps = 2`, and `batch_size = 2` for a quick smoke test.
+
 ## Config
 
 `load_environment(config)` accepts a dict (or `Config`) with:
