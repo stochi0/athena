@@ -7,10 +7,10 @@ The agent gets a sandbox with the [autoresearch](https://github.com/karpathy/aut
 ## Overview
 
 - **Environment ID**: `autoresearch`
-- **Type**: SandboxEnv (stateful tools: `bash` + `run_training`)
+- **Type**: RLMEnv — REPL (bash) + root tools + sub-LLM
 - **Goal**: achieve the lowest validation bits-per-byte on the fixed eval set by modifying `train.py` and running experiments
-- **Key tools**: `bash` (edit files), `run_training` (run `uv run train.py`, parse val_bpb, store in state)
-- **Metrics**: `num_runs`, `best_val_bpb`
+- **Key tools**: **call_bash_repl** (edit files and run shell commands), **run_training** (run `uv run train.py`, parse val_bpb, store in state), **llm_batch** (sub-LLM calls from the REPL)
+- **Metrics**: `num_runs`, `best_val_bpb`, and RLM monitor metrics
 
 ## Quickstart
 
@@ -58,12 +58,22 @@ To use the environment with [Lab Hosted Training](https://docs.primeintellect.ai
 - **start_command** (`str | None`, default `None`): if set, used as sandbox start command; else clones repo, runs `uv sync` and `prepare.py --num-shards 2`, then tails
 - **num_examples** (`int`, default `5`): dataset size (synthetic prompts)
 - **repo_url** (`str`, default `"https://github.com/karpathy/autoresearch.git"`): git URL to clone for the autoresearch repo
+- **dataset_builder** (`Callable[[int], Dataset] | None`): optional; if set, called with `num_examples` to build the dataset (rows should have `question`, `task`, and optionally `info`)
 
 Example: more turns and 3 eval examples:
 
 ```bash
 prime eval run autoresearch -a '{"max_turns": 20, "num_examples": 3}' -m gpt-4.1-mini
 ```
+
+## Dataset rows and `info` (context_dir / context)
+
+RLMEnv passes each dataset row’s **info** into `state["info"]` and uses it when building the REPL filesystem:
+
+- **info["context_dir"]**: path to a directory on the host. RLMEnv copies this directory into the rollout’s REPL fs before the worker starts, so the agent can read those files (e.g. per-example configs or data). The clone/setup in `on_sandbox_ready` runs after this.
+- **info["context"]**: optional JSON-serializable data; RLMEnv writes it to a file in the REPL fs (legacy builtin context).
+
+Default rows use `info: {}`. To supply context, use **dataset_builder** and return rows with `"info": {"context_dir": "/path/to/dir"}` or `"info": {"context": {...}}`.
 
 ## Sandbox setup
 
