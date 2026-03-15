@@ -101,8 +101,6 @@ async def autoresearch_reward(state: State, cfg: Config) -> float:
 
 async def num_runs_metric(state: State, cfg: Config) -> float:
     """Number of training runs executed in this rollout."""
-    if not isinstance(state, dict):
-        return 0.0
     return float(state.get(_CACHE_NUM_RUNS, 0))
 
 
@@ -152,9 +150,7 @@ async def run_training(cfg: Config) -> str:
     if match:
         val_bpb = float(match.group(1))
         state["last_val_bpb"] = val_bpb
-        state[_CACHE_BEST_BPB] = min(
-            state.get(_CACHE_BEST_BPB, float("inf")), val_bpb
-        )
+        state[_CACHE_BEST_BPB] = min(state.get(_CACHE_BEST_BPB, float("inf")), val_bpb)
         state[_CACHE_NUM_RUNS] = state.get(_CACHE_NUM_RUNS, 0) + 1
         return (
             f"Run completed.\nval_bpb: {val_bpb:.6f}\n"
