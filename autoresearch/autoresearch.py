@@ -115,7 +115,7 @@ async def best_val_bpb_metric(state: State, cfg: Config) -> float:
 
 
 # ---------------------------------------------------------------------------
-# Root tool exposed to the model (module-level so RLMEnv can use it without subclassing)
+# Root tool exposed to the model
 # ---------------------------------------------------------------------------
 
 
