@@ -1,7 +1,7 @@
 """
 Autoresearch Verifiers environment: autonomous LLM training research with prime-rl.
 
-Uses RLMEnv (sandbox-backed Bash REPL) and a run_training() root tool. Sandbox
+Uses RLMEnv (sandbox-backed Bash REPL) and a run_training_tool() root tool. Sandbox
 start command clones the repo and runs uv sync + prepare. Reward = 1 / (1 + best_val_bpb).
 
 Usage:
@@ -62,7 +62,7 @@ AUTORESEARCH_SYSTEM_PROMPT = """You are an autonomous research agent. Your goal 
 
 - You may only modify train.py in the autoresearch repo.
 - Use the Bash REPL (call_bash_repl) to edit files: cd to the repo, edit train.py, then run experiments.
-- Use the run_training() root tool to run one 5-minute training experiment. It runs `uv run train.py` and returns val_bpb; lower is better.
+- Use the run_training_tool() root tool to run one 5-minute training experiment. It runs `uv run train.py` and returns val_bpb; lower is better.
 - Run one or more experiments and try to improve val_bpb. You can use llm_batch() for sub-tasks (e.g. summarising logs) if needed.
 - When done, export RLM_READY=1 and set RLM_CONTENT to a short summary of your best val_bpb."""
 
@@ -73,6 +73,7 @@ AUTORESEARCH_SYSTEM_PROMPT = """You are an autonomous research agent. Your goal 
 
 # Ref used by run_training_tool to get the RLMEnv instance (set after env is created).
 _env_ref: list[RLMEnv | None] = [None]
+_current_cfg: Config | None = None
 
 
 def _reward_from_val_bpb(val_bpb: float | None) -> float:
@@ -116,59 +117,61 @@ async def best_val_bpb_metric(state: State, cfg: Config) -> float:
 
 
 # ---------------------------------------------------------------------------
-# Root tool: run_training (module-level so RLMEnv can use it without subclassing)
+# Root tool exposed to the model (module-level so RLMEnv can use it without subclassing)
 # ---------------------------------------------------------------------------
 
 
-def _make_run_training_tool(cfg: Config) -> Callable[..., Any]:
-    """Build run_training root tool that runs uv run train.py in the sandbox and updates state."""
-
-    async def run_training() -> str:
-        """Run one 5-minute training experiment in the sandbox. Returns val_bpb and summary."""
-        env = _env_ref[0]
-        if env is None:
-            return "Error: environment not set."
-        ctx = env._root_tool_context_var.get()
-        if not ctx:
-            return "Error: run_training must be called from the REPL."
-        state = ctx.get("state")
-        if not state:
-            return "Error: state not available."
-        sandbox_id = state.get("sandbox_id")
-        if not sandbox_id:
-            return "Error: sandbox not ready yet."
-        working_dir = cfg.working_dir
-        command = f"cd {working_dir} && uv run train.py 2>&1"
-        try:
-            result = await env._executor._execute_sandbox_command(
-                sandbox_id,
-                command,
-                timeout=cfg.timeout_per_training_run_seconds,
-            )
-        except Exception as e:
-            return f"Training run failed: {e}. (Check OOM, syntax, or timeout.)"
-        stdout = (getattr(result, "stdout", None) or "").strip()
-        stderr = (getattr(result, "stderr", None) or "").strip()
-        combined = stdout + ("\n" + stderr if stderr else "")
-        match = VAL_BPB_PATTERN.search(combined)
-        if match:
-            val_bpb = float(match.group(1))
-            state["last_val_bpb"] = val_bpb
-            state[_CACHE_BEST_BPB] = min(
-                state.get(_CACHE_BEST_BPB, float("inf")), val_bpb
-            )
-            state[_CACHE_NUM_RUNS] = state.get(_CACHE_NUM_RUNS, 0) + 1
-            return (
-                f"Run completed.\nval_bpb: {val_bpb:.6f}\n"
-                f"Best so far: {state[_CACHE_BEST_BPB]:.6f}\n---\n{combined}"
-            )
-        return (
-            "Run finished but val_bpb not found in output (run may have crashed or timed out).\n"
-            f"---\n{combined}"
+async def run_training(cfg: Config) -> str:
+    """Run one 5-minute training experiment in the sandbox. Returns val_bpb and summary."""
+    env = _env_ref[0]
+    if env is None:
+        return "Error: environment not set."
+    ctx = env._root_tool_context_var.get()
+    if not ctx:
+        return "Error: run_training_tool must be called from the REPL."
+    state = ctx.get("state")
+    if not state:
+        return "Error: state not available."
+    sandbox_id = state.get("sandbox_id")
+    if not sandbox_id:
+        return "Error: sandbox not ready yet."
+    working_dir = cfg.working_dir
+    command = f"cd {working_dir} && uv run train.py 2>&1"
+    try:
+        result = await env._executor._execute_sandbox_command(
+            sandbox_id,
+            command,
+            timeout=cfg.timeout_per_training_run_seconds,
         )
+    except Exception as e:
+        return f"Training run failed: {e}. (Check OOM, syntax, or timeout.)"
+    stdout = (getattr(result, "stdout", None) or "").strip()
+    stderr = (getattr(result, "stderr", None) or "").strip()
+    combined = stdout + ("\n" + stderr if stderr else "")
+    match = VAL_BPB_PATTERN.search(combined)
+    if match:
+        val_bpb = float(match.group(1))
+        state["last_val_bpb"] = val_bpb
+        state[_CACHE_BEST_BPB] = min(
+            state.get(_CACHE_BEST_BPB, float("inf")), val_bpb
+        )
+        state[_CACHE_NUM_RUNS] = state.get(_CACHE_NUM_RUNS, 0) + 1
+        return (
+            f"Run completed.\nval_bpb: {val_bpb:.6f}\n"
+            f"Best so far: {state[_CACHE_BEST_BPB]:.6f}\n---\n{combined}"
+        )
+    return (
+        "Run finished but val_bpb not found in output (run may have crashed or timed out).\n"
+        f"---\n{combined}"
+    )
 
-    run_training.__name__ = "run_training"
-    return run_training
+
+async def run_training_tool() -> str:
+    """Run one 5-minute training experiment in the sandbox. Returns val_bpb and summary."""
+    cfg = _current_cfg
+    if cfg is None:
+        return "Error: config not set (load_environment not called)."
+    return await run_training(cfg)
 
 
 # ---------------------------------------------------------------------------
@@ -178,7 +181,7 @@ def _make_run_training_tool(cfg: Config) -> Callable[..., Any]:
 DEFAULT_QUESTION = (
     "You are an autonomous research agent. Your goal is to achieve the lowest "
     "validation bits-per-byte (val_bpb) on the fixed eval set. You may only "
-    "modify train.py. Use the bash tool to edit files and the run_training tool "
+    "modify train.py. Use the bash tool to edit files and the run_training_tool "
     "to run each 5-minute experiment. After each run you get val_bpb; lower is better. "
     "Run one or more experiments and try to improve val_bpb."
 )
@@ -258,7 +261,8 @@ def load_environment(
             "exec tail -f /dev/null"
         )
 
-    run_training_tool = _make_run_training_tool(cfg)
+    global _current_cfg
+    _current_cfg = cfg
     env = RLMEnv(
         dataset=dataset,
         rubric=rubric,
