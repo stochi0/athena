@@ -3,19 +3,29 @@ name = "autoresearch"
 version = "0.1.0"
 description = "Autonomous LLM training research environment for Verifiers and prime-rl"
 readme = "README.md"
-requires-python = ">=3.10"
+license = "Apache-2.0"
+tags = ["multi-turn", "tool-use", "rlm", "autoresearch", "training"]
+requires-python = ">=3.11"
 dependencies = [
     "verifiers",
-    "prime-sandboxes",
-    "datasets",
+    "datasets"
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.hatch.build]
-include = ["autoresearch.py", "pyproject.toml", "README.md"]
+[tool.hatch.build.targets.wheel]
+only-include = [
+    "autoresearch.py",
+    "pyproject.toml",
+    "README.md",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.4",
+]
 
 [tool.verifiers.eval]
 num_examples = 3
