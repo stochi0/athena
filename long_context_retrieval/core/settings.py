@@ -6,7 +6,7 @@ from typing import Any
 
 CONTEXTS_DIR = "contexts"
 
-CACHE_DIRNAME = ".contexts_cache"
+WORKSPACE_STATE_DIRNAME = ".workspace_state"
 REGISTRY_DB = "registry.db"
 VECTOR_DIRNAME = "vector"
 GRAPH_DIRNAME = "graphs"
@@ -14,14 +14,14 @@ SQL_DIRNAME = "sql"
 ARTIFACTS_DIRNAME = "artifacts"
 SCRATCH_DIRNAME = "scratch"
 
-ROOT_PROMPT_VERBOSITY = "heavy"
-SUB_PROMPT_VERBOSITY = "heavy"
+ROOT_PROMPT_VERBOSITY = "medium"
+SUB_PROMPT_VERBOSITY = "medium"
 REPL_LANGUAGE = "python"
 PIP_INSTALL_PACKAGES = "chromadb networkx pypdf"
-CODE_EXECUTION_TIMEOUT = 300
+CODE_EXECUTION_TIMEOUT = 180
 MAX_OUTPUT_LENGTH = 8192
-MAX_TURNS = 2000
-SUB_LLM_MAX_TURNS = 800
+MAX_TURNS = 200
+SUB_LLM_MAX_TURNS = 60
 ENV_ID = "long_context_retrieval"
 USER_PROMPT = (
     "Answer the question using the research-paper workspace and provide citations."
@@ -29,11 +29,11 @@ USER_PROMPT = (
 
 WORKSPACE_CONTEXT_NOTE = dedent(
     """
-    The full task materials live inside the local workspace and cache.
+    The full task materials live inside the local workspace and its staged metadata.
     Before you answer, you MUST inspect the staged workspace resources with your REPL:
 
-    - read `workspace_overview.txt` in `cache` scope first for the quickstart and document inventory
-    - read `workspace_manifest.json` in `cache` scope for exact paths and cache locations
+    - read `.workspace_state/workspace_overview.txt` in `workspace` scope first for the quickstart and document inventory
+    - read `.workspace_state/workspace_manifest.json` in `workspace` scope for exact paths and runtime state locations
     - inspect the `documents` table in the registry with `sql_query(...)`
 
     Ground your work in those files and in the PDFs themselves. Do not rely on prior knowledge or
@@ -53,7 +53,7 @@ ENV_TIPS = dedent(
       4. aggregate the evidence in Python or scratch artifacts
       5. run at least one verification sub-call before submitting the final answer
 
-    * Use the REPL mainly for orchestration, data movement, filtering, caching, and verification.
+    * Use the REPL mainly for orchestration, data movement, filtering, staging, and verification.
       Let delegated sub-calls do the expensive reading, comparison, extraction, and synthesis work.
 
     * If the corpus is large, do not read everything linearly. Partition it, search broadly, and
@@ -74,12 +74,12 @@ SYSTEM_PROMPT = dedent(
     evidence collection.
 
     The workspace may contain one or many PDFs. The system manages only a thin registry plus
-    persistent cache and scratch storage. You decide whether to parse PDFs, create text artifacts,
+    lightweight workspace-state metadata and scratch storage. You decide whether to parse PDFs, create text artifacts,
     build scratch SQL tables, create vector indices, materialize graphs, or use the filesystem.
 
     Starting procedure:
     1. Inspect the staged workspace resources first.
-    2. Read `workspace_overview.txt` and `workspace_manifest.json` from `cache` scope.
+    2. Read `.workspace_state/workspace_overview.txt` and `.workspace_state/workspace_manifest.json` from `workspace` scope.
     3. Query the registry `documents` table before making retrieval decisions.
     4. Decide which artifacts or intermediate structures would make the task easier.
     5. Use parallel sub-calls to search, extract, compare, and verify evidence.
@@ -107,7 +107,7 @@ SYSTEM_PROMPT = dedent(
     - create embeddings / structured tables / graphs only when they will improve recall or precision
     - register artifacts and provenance when derived outputs become important
 
-    Do not answer from memory. Ground all reasoning in the local workspace, the cache artifacts, and
+    Do not answer from memory. Ground all reasoning in the local workspace, the staged metadata, and
     the observed tool outputs. Before submitting, perform a final verification pass to check:
     - the answer fully addresses the question
     - citations support every material claim
@@ -160,11 +160,10 @@ class Config:
     sub_max_completion_tokens: int | None = None
     root_max_completion_tokens: int | None = None
     path_anchor: str | None = None
-    context_dir: str | None = None
     workspace_dir: str | None = None
     pdf_dir: str | None = None
     pdf_paths: list[str] | None = None
-    workspace_cache_root: str | None = None
+    workspace_state_root: str | None = None
     env_id: str = ENV_ID
 
     @classmethod
@@ -193,10 +192,9 @@ class Config:
             "sub_max_completion_tokens": self.sub_max_completion_tokens,
             "root_max_completion_tokens": self.root_max_completion_tokens,
             "path_anchor": self.path_anchor,
-            "context_dir": self.context_dir,
             "workspace_dir": self.workspace_dir,
             "pdf_dir": self.pdf_dir,
             "pdf_paths": self.pdf_paths,
-            "workspace_cache_root": self.workspace_cache_root,
+            "workspace_state_root": self.workspace_state_root,
             "env_id": self.env_id,
         }

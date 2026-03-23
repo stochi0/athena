@@ -45,7 +45,11 @@ def normalize_items(value: Any) -> list[str]:
         stripped = value.strip()
         if not stripped:
             return []
-        decoded = json.loads(stripped)
+        # Accept both raw strings and JSON-encoded payloads/lists.
+        try:
+            decoded = json.loads(stripped)
+        except json.JSONDecodeError:
+            return [stripped]
         return normalize_items(decoded)
     if isinstance(value, dict):
         answer = value.get("answer")

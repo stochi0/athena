@@ -8,12 +8,12 @@ from typing import Any
 from datasets import Dataset
 
 from .settings import (
-    CACHE_DIRNAME,
     Config,
     ENV_TIPS,
     SYSTEM_PROMPT,
     USER_PROMPT,
     WORKSPACE_CONTEXT_NOTE,
+    WORKSPACE_STATE_DIRNAME,
 )
 from .types import WorkspaceConfig
 from .workspace import ensure_workspace, get_paths, init_workspace
@@ -93,9 +93,7 @@ def build_rows(cfg: Config, anchor: Path) -> list[dict[str, Any]]:
         output_root = (anchor / output_root).resolve()
     staged = output_root / "dataset_hf"
 
-    has_workspace = any(
-        [cfg.workspace_dir, cfg.context_dir, cfg.pdf_dir, cfg.pdf_paths]
-    )
+    has_workspace = any([cfg.workspace_dir, cfg.pdf_dir, cfg.pdf_paths])
     if cfg.dataset_path:
         path = _resolve_path(cfg.dataset_path, anchor)
         return read_rows(path, anchor)
@@ -108,16 +106,14 @@ def build_rows(cfg: Config, anchor: Path) -> list[dict[str, Any]]:
         dataset = Dataset.load_from_disk(str(staged))
         return prepare_rows(dataset.to_list(), anchor)
 
-    workspace_hint = cfg.workspace_dir or cfg.context_dir
+    workspace_hint = cfg.workspace_dir
     if not any([workspace_hint, cfg.pdf_dir, cfg.pdf_paths]):
         workspace_root = Path(tempfile.mkdtemp(prefix="long_context_retrieval_ws_"))
         init_workspace(
             get_paths(
                 WorkspaceConfig(
                     workspace_root=workspace_root,
-                    cache_root=workspace_root.parent
-                    / CACHE_DIRNAME
-                    / workspace_root.name,
+                    state_root=workspace_root / WORKSPACE_STATE_DIRNAME,
                 )
             )
         )
@@ -128,7 +124,7 @@ def build_rows(cfg: Config, anchor: Path) -> list[dict[str, Any]]:
             "workspace_dir": workspace_hint,
             "pdf_dir": cfg.pdf_dir,
             "pdf_paths": cfg.pdf_paths,
-            "workspace_cache_root": cfg.workspace_cache_root,
+            "workspace_state_root": cfg.workspace_state_root,
         },
         anchor,
     )

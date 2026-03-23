@@ -17,14 +17,14 @@ import requests
 from datasets import Dataset
 
 try:
-    from core.settings import CACHE_DIRNAME, CONTEXTS_DIR
+    from core.settings import CONTEXTS_DIR, WORKSPACE_STATE_DIRNAME
     from core.types import WorkspaceConfig
     from core.workspace import get_paths, init_workspace
 except ModuleNotFoundError:
     PROJECT_ROOT = Path(__file__).resolve().parents[1]
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
-    from core.settings import CACHE_DIRNAME, CONTEXTS_DIR
+    from core.settings import CONTEXTS_DIR, WORKSPACE_STATE_DIRNAME
     from core.types import WorkspaceConfig
     from core.workspace import get_paths, init_workspace
 
@@ -240,7 +240,7 @@ def build_workspace(output_dir: Path, papers: list[dict[str, Any]]) -> Path:
         get_paths(
             WorkspaceConfig(
                 workspace_root=workspace_root,
-                cache_root=output_dir / CACHE_DIRNAME / workspace_root.name,
+                state_root=workspace_root / WORKSPACE_STATE_DIRNAME,
             )
         )
     )

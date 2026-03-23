@@ -10,41 +10,41 @@ from pypdf import PdfReader
 
 from .settings import (
     ARTIFACTS_DIRNAME,
-    CACHE_DIRNAME,
     GRAPH_DIRNAME,
     REGISTRY_DB,
     SCRATCH_DIRNAME,
     SQL_DIRNAME,
     VECTOR_DIRNAME,
+    WORKSPACE_STATE_DIRNAME,
 )
 from .types import WorkspaceConfig, WorkspacePaths
 from .utils import stable_document_id
 
 
 def get_paths(config: WorkspaceConfig) -> WorkspacePaths:
-    cache_root = config.cache_root.resolve()
+    state_root = config.state_root.resolve()
     workspace_root = config.workspace_root.resolve()
     return WorkspacePaths(
         workspace_root=workspace_root,
-        cache_root=cache_root,
-        registry_db=cache_root / REGISTRY_DB,
-        vector_root=cache_root / VECTOR_DIRNAME,
-        graph_root=cache_root / GRAPH_DIRNAME,
-        sql_root=cache_root / SQL_DIRNAME,
-        artifacts_root=cache_root / ARTIFACTS_DIRNAME,
-        scratch_root=cache_root / SCRATCH_DIRNAME,
+        state_root=state_root,
+        registry_db=state_root / REGISTRY_DB,
+        vector_root=state_root / VECTOR_DIRNAME,
+        graph_root=state_root / GRAPH_DIRNAME,
+        sql_root=state_root / SQL_DIRNAME,
+        artifacts_root=state_root / ARTIFACTS_DIRNAME,
+        scratch_root=state_root / SCRATCH_DIRNAME,
     )
 
 
-def _default_cache_root(workspace_root: Path) -> Path:
-    return workspace_root.parent / CACHE_DIRNAME / workspace_root.name
+def _default_state_root(workspace_root: Path) -> Path:
+    return workspace_root / WORKSPACE_STATE_DIRNAME
 
 
 def build_workspace(
     *,
     pdf_paths: list[str],
     workspace_root: str | None = None,
-    cache_root: str | None = None,
+    state_root: str | None = None,
 ) -> WorkspaceConfig:
     src_paths = [Path(path).expanduser().resolve() for path in pdf_paths]
     if not src_paths:
@@ -62,17 +62,17 @@ def build_workspace(
         dest = pdf_dir / src.name
         if src.resolve() != dest.resolve():
             shutil.copy2(src, dest)
-    resolved_cache_root = (
-        Path(cache_root).expanduser().resolve()
-        if cache_root
-        else _default_cache_root(root)
+    resolved_state_root = (
+        Path(state_root).expanduser().resolve()
+        if state_root
+        else _default_state_root(root)
     )
-    return WorkspaceConfig(workspace_root=root, cache_root=resolved_cache_root)
+    return WorkspaceConfig(workspace_root=root, state_root=resolved_state_root)
 
 
 def ensure_workspace(info: dict[str, Any], anchor: Path) -> dict[str, Any]:
     normalized = dict(info)
-    workspace_dir = normalized.get("workspace_dir") or normalized.get("context_dir")
+    workspace_dir = normalized.get("workspace_dir")
     pdf_dir = normalized.get("pdf_dir")
     pdf_paths = normalized.get("pdf_paths")
 
@@ -84,13 +84,13 @@ def ensure_workspace(info: dict[str, Any], anchor: Path) -> dict[str, Any]:
             workspace_root = workspace_root.resolve()
         if not workspace_root.exists():
             raise FileNotFoundError(f"Workspace directory not found: {workspace_root}")
-        cache_root_value = normalized.get("workspace_cache_root")
-        cache_root = (
-            Path(str(cache_root_value)).expanduser().resolve()
-            if cache_root_value
-            else _default_cache_root(workspace_root)
+        state_root_value = normalized.get("workspace_state_root")
+        state_root = (
+            Path(str(state_root_value)).expanduser().resolve()
+            if state_root_value
+            else _default_state_root(workspace_root)
         )
-        config = WorkspaceConfig(workspace_root=workspace_root, cache_root=cache_root)
+        config = WorkspaceConfig(workspace_root=workspace_root, state_root=state_root)
     elif pdf_dir:
         pdf_root = Path(str(pdf_dir)).expanduser()
         if not pdf_root.is_absolute():
@@ -101,7 +101,7 @@ def ensure_workspace(info: dict[str, Any], anchor: Path) -> dict[str, Any]:
         config = build_workspace(
             pdf_paths=paths,
             workspace_root=str(normalized.get("workspace_root") or pdf_root),
-            cache_root=normalized.get("workspace_cache_root"),
+            state_root=normalized.get("workspace_state_root"),
         )
     elif pdf_paths:
         resolved_pdf_paths: list[str] = []
@@ -115,23 +115,22 @@ def ensure_workspace(info: dict[str, Any], anchor: Path) -> dict[str, Any]:
         config = build_workspace(
             pdf_paths=resolved_pdf_paths,
             workspace_root=normalized.get("workspace_root"),
-            cache_root=normalized.get("workspace_cache_root"),
+            state_root=normalized.get("workspace_state_root"),
         )
     else:
         raise ValueError(
-            "Workspace info must include one of: workspace_dir/context_dir, pdf_dir, or pdf_paths."
+            "Workspace info must include one of: workspace_dir, pdf_dir, or pdf_paths."
         )
 
     paths = get_paths(config)
     init_workspace(paths)
     normalized["workspace_dir"] = str(paths.workspace_root)
-    normalized["workspace_cache_root"] = str(paths.cache_root)
-    normalized["context_dir"] = str(paths.workspace_root)
+    normalized["workspace_state_root"] = str(paths.state_root)
     return normalized
 
 
 def init_workspace(paths: WorkspacePaths) -> None:
-    paths.cache_root.mkdir(parents=True, exist_ok=True)
+    paths.state_root.mkdir(parents=True, exist_ok=True)
     paths.vector_root.mkdir(parents=True, exist_ok=True)
     paths.graph_root.mkdir(parents=True, exist_ok=True)
     paths.sql_root.mkdir(parents=True, exist_ok=True)
@@ -200,23 +199,25 @@ def init_workspace(paths: WorkspacePaths) -> None:
         str(path.relative_to(paths.workspace_root))
         for path in paths.workspace_root.rglob("*.pdf")
     )
-    manifest_path = paths.cache_root / "workspace_manifest.json"
+    workspace_state_root = paths.workspace_root / WORKSPACE_STATE_DIRNAME
+    workspace_state_root.mkdir(parents=True, exist_ok=True)
+    manifest_path = workspace_state_root / "workspace_manifest.json"
     manifest = {
         "workspace_root": str(paths.workspace_root),
-        "cache_root": str(paths.cache_root),
+        "workspace_state_root": str(workspace_state_root),
         "registry_db": str(paths.registry_db),
         "documents": document_paths,
     }
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    overview_path = paths.cache_root / "workspace_overview.txt"
+    overview_path = workspace_state_root / "workspace_overview.txt"
     overview_lines = [
         "Long-context retrieval workspace overview",
         "",
-        "Read this file first. It summarizes the local workspace, the cache layout, and the most",
+        "Read this file first. It summarizes the local workspace, the staged metadata layout, and the most",
         "useful first actions for agentic retrieval.",
         "",
         "Recommended starting workflow:",
-        "1. Read this file and `workspace_manifest.json` from cache scope.",
+        "1. Read this file and `workspace_manifest.json` from workspace scope.",
         "2. Query the registry `documents` table with `sql_query(...)` to inspect document metadata.",
         "3. Use `llm_batch()` heavily to fan out search, extraction, and verification over candidate PDFs, pages, or sections.",
         "4. Aggregate evidence in Python or scratch artifacts before synthesizing an answer.",
@@ -224,12 +225,12 @@ def init_workspace(paths: WorkspacePaths) -> None:
         "",
         "Available roots:",
         f"- workspace_root: {paths.workspace_root}",
-        f"- cache_root: {paths.cache_root}",
+        f"- workspace_state_root: {workspace_state_root}",
         f"- registry_db: {paths.registry_db}",
         f"- scratch_root: {paths.scratch_root}",
         "",
         "Important files and stores:",
-        "- `workspace_manifest.json`: exact document inventory and cache locations",
+        "- `.workspace_state/workspace_manifest.json`: exact document inventory and runtime state locations",
         "- registry database tables: `documents`, `artifacts`, `artifact_provenance`, `namespaces`",
         "- scratch scope: rollout-local files, SQL DBs, vector collections, and graphs",
         "",

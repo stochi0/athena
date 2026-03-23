@@ -7,10 +7,10 @@ The environment gives the model:
 - a copied PDF workspace inside the Python REPL
 - raw CRUD tools for SQL, vector, graph, and filesystem storage
 - a thin system-owned registry for documents, artifacts, and provenance
-- persistent cache storage across queries and rollout-scoped scratch namespaces
+- persistent workspace-state storage across queries and rollout-scoped scratch namespaces
 - `llm_batch()` support from `verifiers` for task decomposition
 
-The model decides whether to parse PDFs, chunk text, create embeddings, define scratch schemas, build graphs, or reuse cached artifacts.
+The model decides whether to parse PDFs, chunk text, create embeddings, define scratch schemas, build graphs, or reuse staged artifacts.
 The root RLM is explicitly prompted to decompose work aggressively and use `llm_batch()` in parallel whenever the task can be split. Delegated sub-LLMs inherit the same shared SQL/vector/graph/filesystem/provenance tool surface.
 
 ## Quickstart
@@ -23,7 +23,7 @@ uv sync
 
 ```bash
 cd long_context_retrieval
-uv run prime eval run eval.toml --skip-upload
+uv run prime eval run config/eval/eval.toml --skip-upload
 ```
 
 ### Hosted RL (2-example smoke test)
@@ -45,9 +45,9 @@ Accepted input shapes in `info`:
 - `workspace_dir`: existing directory containing PDFs
 - `pdf_dir`: directory to scan for PDFs
 - `pdf_paths`: explicit list of PDF files
-- `workspace_cache_root`: optional persistent cache root override
+- `workspace_state_root`: optional persistent state root override
 
-The environment initializes a registry under the cache root with:
+The environment initializes a registry under the workspace state root with:
 
 - `documents`
 - `artifacts`
@@ -60,8 +60,8 @@ The root model accesses these tools from inside the Python REPL:
 
 - `sql_query(query, scope="registry", db_name="registry")`
 - `sql_write(stmt, scope="scratch", db_name="main")`
-- `vector_list_collections(scope="cache")`
-- `vector_search(query, collection, n=5, scope="cache", where_json="{}")`
+- `vector_list_collections(scope="scratch")`
+- `vector_search(query, collection, n=5, scope="scratch", where_json="{}")`
 - `vector_upsert(ids, docs, meta_json, collection, scope="scratch")`
 - `vector_delete(collection, ids_json="[]", where_json="{}", scope="scratch")`
 - `graph_query(op, params_json="{}", graph_name="main", scope="scratch")`
@@ -114,7 +114,7 @@ You can also pass `pdf_dir` or `pdf_paths` instead of `workspace_dir`.
 
 - `dataset_path` (`str | None`): JSONL path or HF dataset directory, resolved relative to the env root when not absolute
 - `dataset_output_dir` (`str`, default `"contexts"`): fallback location for staged `dataset_hf/`
-- `workspace_dir`, `pdf_dir`, `pdf_paths`, `workspace_cache_root`: workspace inputs when not loading from a dataset
+- `workspace_dir`, `pdf_dir`, `pdf_paths`, `workspace_state_root`: workspace inputs when not loading from a dataset
 - `max_examples` (`int | None`): cap rows before dataset creation
 - `rlm_model` (`str | None`): sub-model passed to the recursive env
 - `max_turns`, `repl_language`, `sub_llm_max_turns`, `sub_prompt_verbosity`, `root_prompt_verbosity`
@@ -175,13 +175,13 @@ env = create_environment(
 Generate a shared arXiv-backed PDF workspace plus dataset rows:
 
 ```bash
-uv run python scripts/generate_dataset.py --query "cat:cs.IR" --max-papers 10
+uv run python scripts/build_dataset.py --query "cat:cs.IR" --max-papers 10
 ```
 
 This creates:
 
 - `paper_workspace_dataset_out/workspace/`
-- `paper_workspace_dataset_out/.paper_workspace_cache/`
+- `paper_workspace_dataset_out/workspace/.workspace_state/`
 - `paper_workspace_dataset_out/dataset_hf/`
 - `paper_workspace_dataset_out/dataset.jsonl`
 
@@ -210,7 +210,7 @@ prime env push --path .
 Run eval:
 
 ```bash
-prime eval run eval.toml --skip-upload
+uv run prime eval run config/eval/eval.toml --skip-upload
 ```
 
 The environment id is `long_context_retrieval`, and the hosted RL config follows the same `config/rl/*.toml` pattern as `discover_gsm8k`.

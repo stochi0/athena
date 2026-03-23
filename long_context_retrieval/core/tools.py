@@ -24,16 +24,16 @@ class WorkspaceTools:
 
     def _paths(self, state: dict[str, Any]):
         info = state.get("info") or {}
-        cache_root = info.get("workspace_cache_root")
-        workspace_root = info.get("workspace_dir") or info.get("context_dir")
+        state_root = info.get("workspace_state_root")
+        workspace_root = info.get("workspace_dir")
         if not workspace_root:
             raise RuntimeError("Workspace root is not configured.")
-        if not cache_root:
-            raise RuntimeError("workspace_cache_root is not configured.")
+        if not state_root:
+            raise RuntimeError("Workspace state root is not configured.")
         return get_paths(
             WorkspaceConfig(
                 workspace_root=Path(str(workspace_root)),
-                cache_root=Path(str(cache_root)),
+                state_root=Path(str(state_root)),
             )
         )
 
@@ -84,7 +84,7 @@ class WorkspaceTools:
         scope: str = "registry",
         db_name: str = "registry",
     ) -> str:
-        """Run a SELECT/WITH query against the registry or a named cache/scratch SQLite DB."""
+        """Run a SELECT/WITH query against the registry or a named state/scratch SQLite DB."""
         return self._run_json_tool(
             tool_name="sql_query",
             args={"query": query, "scope": scope, "db_name": db_name},
@@ -103,7 +103,7 @@ class WorkspaceTools:
         scope: str = "scratch",
         db_name: str = "main",
     ) -> str:
-        """Execute a SQL write statement against a named cache/scratch SQLite DB."""
+        """Execute a SQL write statement against a named state/scratch SQLite DB."""
         return self._run_json_tool(
             tool_name="sql_write",
             args={"stmt": stmt, "scope": scope, "db_name": db_name},
@@ -116,8 +116,8 @@ class WorkspaceTools:
             ),
         )
 
-    def vector_list_collections(self, scope: str = "cache") -> str:
-        """List vector collections in the cache or scratch namespace."""
+    def vector_list_collections(self, scope: str = "scratch") -> str:
+        """List vector collections in the state or scratch namespace."""
         return self._run_json_tool(
             tool_name="vector_list_collections",
             args={"scope": scope},
@@ -133,10 +133,10 @@ class WorkspaceTools:
         query: str,
         collection: str,
         n: int = 5,
-        scope: str = "cache",
+        scope: str = "scratch",
         where_json: str = "{}",
     ) -> str:
-        """Search a named vector collection in cache or scratch scope."""
+        """Search a named vector collection in state or scratch scope."""
         return self._run_json_tool(
             tool_name="vector_search",
             args={
@@ -218,7 +218,7 @@ class WorkspaceTools:
         graph_name: str = "main",
         scope: str = "scratch",
     ) -> str:
-        """Query a named graph in cache or scratch scope."""
+        """Query a named graph in state or scratch scope."""
         return self._run_json_tool(
             tool_name="graph_query",
             args={
@@ -244,7 +244,7 @@ class WorkspaceTools:
         graph_name: str = "main",
         scope: str = "scratch",
     ) -> str:
-        """Write nodes and edges to a named graph in cache or scratch scope."""
+        """Write nodes and edges to a named graph in state or scratch scope."""
         return self._run_json_tool(
             tool_name="graph_write",
             args={
@@ -264,7 +264,7 @@ class WorkspaceTools:
         )
 
     def fs_list(self, path: str = ".", scope: str = "workspace") -> str:
-        """List files under a workspace, cache, or scratch filesystem scope."""
+        """List files under a workspace, state, or scratch filesystem scope."""
         return self._run_json_tool(
             tool_name="fs_list",
             args={"path": path, "scope": scope},
@@ -282,7 +282,7 @@ class WorkspaceTools:
         scope: str = "workspace",
         encoding: str = "utf-8",
     ) -> str:
-        """Read a text file from workspace, cache, or scratch scope."""
+        """Read a text file from workspace, state, or scratch scope."""
         state = self._require_active_state()
         result = self._files.read(
             paths=self._paths(state),
@@ -307,7 +307,7 @@ class WorkspaceTools:
         overwrite: bool = False,
         encoding: str = "utf-8",
     ) -> str:
-        """Write a text file into cache or scratch scope."""
+        """Write a text file into state or scratch scope."""
         return self._run_json_tool(
             tool_name="fs_write",
             args={"path": path, "scope": scope, "overwrite": overwrite},
@@ -323,7 +323,7 @@ class WorkspaceTools:
         )
 
     def fs_mkdir(self, path: str, scope: str = "scratch") -> str:
-        """Create a directory inside cache or scratch scope."""
+        """Create a directory inside state or scratch scope."""
         return self._run_json_tool(
             tool_name="fs_mkdir",
             args={"path": path, "scope": scope},
@@ -341,7 +341,7 @@ class WorkspaceTools:
         scope: str = "scratch",
         recursive: bool = False,
     ) -> str:
-        """Delete a file or directory inside cache or scratch scope."""
+        """Delete a file or directory inside state or scratch scope."""
         return self._run_json_tool(
             tool_name="fs_delete",
             args={"path": path, "scope": scope, "recursive": recursive},

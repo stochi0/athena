@@ -21,13 +21,13 @@ class SQLiteAdapter:
         self, *, paths: WorkspacePaths, scope: str, rollout_id: str
     ) -> Path:
         if scope == "registry":
-            return paths.cache_root
-        if scope == "cache":
+            return paths.state_root
+        if scope == "state":
             root = paths.sql_root
         elif scope == "scratch":
             root = paths.scratch_root / rollout_id / "sql"
         else:
-            raise ValueError("scope must be one of: registry, cache, scratch.")
+            raise ValueError("scope must be one of: registry, state, scratch.")
         root.mkdir(parents=True, exist_ok=True)
         return root
 
@@ -108,12 +108,12 @@ class VectorAdapter:
     def _scope_root(
         self, *, paths: WorkspacePaths, scope: str, rollout_id: str
     ) -> Path:
-        if scope == "cache":
+        if scope == "state":
             root = paths.vector_root
         elif scope == "scratch":
             root = paths.scratch_root / rollout_id / "vector"
         else:
-            raise ValueError("Vector scope must be cache or scratch.")
+            raise ValueError("Vector scope must be state or scratch.")
         root.mkdir(parents=True, exist_ok=True)
         return root
 
@@ -219,12 +219,12 @@ class GraphAdapter:
     def _graph_path(
         self, *, paths: WorkspacePaths, scope: str, graph_name: str, rollout_id: str
     ) -> Path:
-        if scope == "cache":
+        if scope == "state":
             root = paths.graph_root
         elif scope == "scratch":
             root = paths.scratch_root / rollout_id / "graphs"
         else:
-            raise ValueError("Graph scope must be cache or scratch.")
+            raise ValueError("Graph scope must be state or scratch.")
         root.mkdir(parents=True, exist_ok=True)
         return root / f"{graph_name}.pkl"
 
@@ -350,13 +350,13 @@ class FileAdapter:
     def scope_root(self, *, paths: WorkspacePaths, scope: str, rollout_id: str) -> Path:
         if scope == "workspace":
             return paths.workspace_root
-        if scope == "cache":
-            return paths.cache_root
+        if scope == "state":
+            return paths.state_root
         if scope == "scratch":
             root = paths.scratch_root / rollout_id / "files"
             root.mkdir(parents=True, exist_ok=True)
             return root
-        raise ValueError("scope must be one of: workspace, cache, scratch.")
+        raise ValueError("scope must be one of: workspace, state, scratch.")
 
     def resolve_path(
         self, *, paths: WorkspacePaths, scope: str, rollout_id: str, rel_path: str

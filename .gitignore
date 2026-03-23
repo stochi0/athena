@@ -221,6 +221,10 @@ __marimo__/
 # Prime Intellect
 .prime/
 
+# Long-context retrieval runtime state
+.workspace_state/
+.contexts_cache/
+
 # Rubric Discovery
 rubric_discovery/
 
