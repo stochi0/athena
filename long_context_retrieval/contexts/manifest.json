@@ -4,5 +4,5 @@
   "num_rows": 10,
   "workspace_root": "contexts/workspace",
   "dataset_dir": "contexts/dataset_hf",
-  "jsonl_path": "contexts/dataset.jsonl"
+  "jsonl_path": "data/dataset.jsonl"
 }

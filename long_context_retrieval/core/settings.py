@@ -20,8 +20,8 @@ REPL_LANGUAGE = "python"
 PIP_INSTALL_PACKAGES = "chromadb networkx pypdf"
 CODE_EXECUTION_TIMEOUT = 300
 MAX_OUTPUT_LENGTH = 8192
-MAX_TURNS = 20
-SUB_LLM_MAX_TURNS = 4
+MAX_TURNS = 2000
+SUB_LLM_MAX_TURNS = 800
 ENV_ID = "long_context_retrieval"
 USER_PROMPT = (
     "Answer the question using the research-paper workspace and provide citations."
