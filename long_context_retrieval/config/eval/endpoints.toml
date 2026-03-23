@@ -1,0 +1,6 @@
+[[endpoint]]
+endpoint_id = "prime-openai-gpt-4.1-mini"
+model = "openai/gpt-4.1-mini"
+api_base_url = "https://api.pinference.ai/api/v1"
+api_key_var = "PRIME_API_KEY"
+api_client_type = "openai_chat_completions"

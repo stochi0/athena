@@ -1,8 +1,8 @@
 # Run from config/: prime eval run eval.toml --skip-upload
 
 save_results = true
-model = "openai/gpt-4.1-mini"
-provider = "prime"
+endpoints_path = "endpoints.toml"
+endpoint_id = "prime-openai-gpt-4.1-mini"
 num_examples = 1
 rollouts_per_example = 1
 max_concurrent = 1

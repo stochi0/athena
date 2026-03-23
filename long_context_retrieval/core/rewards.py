@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from collections import Counter
-from typing import Any
 
 import verifiers as vf
 from verifiers.envs.experimental.rlm_env import RLMMonitorRubric
@@ -10,8 +9,8 @@ from verifiers.envs.experimental.rlm_env import RLMMonitorRubric
 from .utils import normalize_items, parse_final_answer_payload
 
 
-async def correctness(answer: Any, state: vf.State) -> float:
-    expected = {item.lower() for item in normalize_items(answer)}
+async def correctness(state: vf.State) -> float:
+    expected = {item.lower() for item in normalize_items(state.get("answer"))}
     payload = parse_final_answer_payload(state.get("final_answer"))
     predicted = {item.lower() for item in normalize_items(payload.get("answer"))}
     if not expected and not predicted:
@@ -46,7 +45,7 @@ async def citation_support(state: vf.State) -> float:
     return supported / len(citations)
 
 
-async def grounded_tool_use(_info: Any, state: vf.State) -> float:
+async def grounded_tool_use(state: vf.State) -> float:
     tool_calls = state.get("root_tool_calls", {})
     invocations = state.get("root_tool_invocations", [])
 
