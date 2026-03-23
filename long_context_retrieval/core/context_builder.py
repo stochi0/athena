@@ -7,7 +7,14 @@ from typing import Any
 
 from datasets import Dataset
 
-from .settings import CACHE_DIRNAME, Config, SYSTEM_PROMPT, USER_PROMPT
+from .settings import (
+    CACHE_DIRNAME,
+    Config,
+    ENV_TIPS,
+    SYSTEM_PROMPT,
+    USER_PROMPT,
+    WORKSPACE_CONTEXT_NOTE,
+)
 from .types import WorkspaceConfig
 from .workspace import ensure_workspace, get_paths, init_workspace
 
@@ -24,9 +31,35 @@ def prepare_rows(rows: list[dict[str, Any]], anchor: Path) -> list[dict[str, Any
     prepared: list[dict[str, Any]] = []
     for row in rows:
         item = dict(row)
+        item["prompt"] = _prepare_prompt_messages(item.get("prompt"))
         item["info"] = ensure_workspace(dict(item.get("info") or {}), anchor)
         prepared.append(item)
     return prepared
+
+
+def _prepare_prompt_messages(raw_prompt: Any) -> list[dict[str, str]]:
+    messages: list[dict[str, str]] = []
+    if isinstance(raw_prompt, list):
+        for message in raw_prompt:
+            if not isinstance(message, dict):
+                continue
+            role = message.get("role")
+            content = message.get("content")
+            if role is None or content is None:
+                continue
+            messages.append({"role": str(role), "content": str(content)})
+
+    if not messages:
+        messages = [{"role": "user", "content": USER_PROMPT}]
+
+    existing_user_content = "\n\n".join(
+        message["content"] for message in messages if message["role"] == "user"
+    )
+    if WORKSPACE_CONTEXT_NOTE not in existing_user_content:
+        messages.append({"role": "user", "content": WORKSPACE_CONTEXT_NOTE})
+    if ENV_TIPS not in existing_user_content:
+        messages.append({"role": "user", "content": ENV_TIPS})
+    return messages
 
 
 def read_rows(dataset_path: Path, anchor: Path) -> list[dict[str, Any]]:
@@ -101,7 +134,9 @@ def build_rows(cfg: Config, anchor: Path) -> list[dict[str, Any]]:
     )
     rows = [
         {
-            "prompt": [{"role": "user", "content": USER_PROMPT}],
+            "prompt": _prepare_prompt_messages(
+                [{"role": "user", "content": USER_PROMPT}]
+            ),
             "answer": json.dumps([""]),
             "info": info,
         }

@@ -196,17 +196,63 @@ def init_workspace(paths: WorkspacePaths) -> None:
     for pdf_path in sorted(paths.workspace_root.rglob("*.pdf")):
         register_document(conn, paths, pdf_path)
 
+    document_paths = sorted(
+        str(path.relative_to(paths.workspace_root))
+        for path in paths.workspace_root.rglob("*.pdf")
+    )
     manifest_path = paths.cache_root / "workspace_manifest.json"
     manifest = {
         "workspace_root": str(paths.workspace_root),
         "cache_root": str(paths.cache_root),
         "registry_db": str(paths.registry_db),
-        "documents": sorted(
-            str(path.relative_to(paths.workspace_root))
-            for path in paths.workspace_root.rglob("*.pdf")
-        ),
+        "documents": document_paths,
     }
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    overview_path = paths.cache_root / "workspace_overview.txt"
+    overview_lines = [
+        "Long-context retrieval workspace overview",
+        "",
+        "Read this file first. It summarizes the local workspace, the cache layout, and the most",
+        "useful first actions for agentic retrieval.",
+        "",
+        "Recommended starting workflow:",
+        "1. Read this file and `workspace_manifest.json` from cache scope.",
+        "2. Query the registry `documents` table with `sql_query(...)` to inspect document metadata.",
+        "3. Use `llm_batch()` heavily to fan out search, extraction, and verification over candidate PDFs, pages, or sections.",
+        "4. Aggregate evidence in Python or scratch artifacts before synthesizing an answer.",
+        "5. Verify the final answer and every citation before submitting.",
+        "",
+        "Available roots:",
+        f"- workspace_root: {paths.workspace_root}",
+        f"- cache_root: {paths.cache_root}",
+        f"- registry_db: {paths.registry_db}",
+        f"- scratch_root: {paths.scratch_root}",
+        "",
+        "Important files and stores:",
+        "- `workspace_manifest.json`: exact document inventory and cache locations",
+        "- registry database tables: `documents`, `artifacts`, `artifact_provenance`, `namespaces`",
+        "- scratch scope: rollout-local files, SQL DBs, vector collections, and graphs",
+        "",
+        "Final answer contract:",
+        '{',
+        '  "answer": "short answer text",',
+        '  "citations": [',
+        '    {',
+        '      "document_id": "doc id",',
+        '      "path": "relative/or/absolute path",',
+        '      "page": 1,',
+        '      "excerpt": "supporting text"',
+        '    }',
+        '  ]',
+        '}',
+        "",
+        "Documents in workspace:",
+    ]
+    if document_paths:
+        overview_lines.extend(f"- {path}" for path in document_paths)
+    else:
+        overview_lines.append("- (no PDFs discovered)")
+    overview_path.write_text("\n".join(overview_lines) + "\n", encoding="utf-8")
     conn.commit()
     conn.close()
 

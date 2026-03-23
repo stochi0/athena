@@ -27,41 +27,91 @@ USER_PROMPT = (
     "Answer the question using the research-paper workspace and provide citations."
 )
 
+WORKSPACE_CONTEXT_NOTE = dedent(
+    """
+    The full task materials live inside the local workspace and cache.
+    Before you answer, you MUST inspect the staged workspace resources with your REPL:
+
+    - read `workspace_overview.txt` in `cache` scope first for the quickstart and document inventory
+    - read `workspace_manifest.json` in `cache` scope for exact paths and cache locations
+    - inspect the `documents` table in the registry with `sql_query(...)`
+
+    Ground your work in those files and in the PDFs themselves. Do not rely on prior knowledge or
+    outside sources when the workspace can answer the question.
+    """
+).strip()
+
+ENV_TIPS = dedent(
+    """
+    <env_tips>
+    * This environment is designed for aggressive decomposition. Use `llm_batch()` early and often.
+
+    * A strong default workflow is:
+      1. inspect `workspace_overview.txt`, `workspace_manifest.json`, and the registry
+      2. identify candidate documents / sections / pages
+      3. fan out parallel sub-calls over those candidates
+      4. aggregate the evidence in Python or scratch artifacts
+      5. run at least one verification sub-call before submitting the final answer
+
+    * Use the REPL mainly for orchestration, data movement, filtering, caching, and verification.
+      Let delegated sub-calls do the expensive reading, comparison, extraction, and synthesis work.
+
+    * If the corpus is large, do not read everything linearly. Partition it, search broadly, and
+      escalate from cheap retrieval to richer indexing only when needed.
+
+    * The final answer must stay concise, but every claim needs grounded evidence and citations.
+      Before submitting, make one last pass to ensure the answer is complete, correctly formatted,
+      and fully supported by the cited excerpts.
+    </env_tips>
+    """
+).strip()
+
 SYSTEM_PROMPT = dedent(
     """
-    You are operating in a Recursive Language Model (RLM) environment over documents.
-    This environment is meant to be used agentically. You should heavily decompose tasks,
-    delegated sub-calls via `llm_batch`, programmatic branching, and tool-driven iteration.
+    You are operating in a Recursive Language Model (RLM) environment over a long-context document
+    workspace. This environment is explicitly designed for agentic work: heavy task decomposition,
+    delegated sub-calls via `llm_batch()`, programmatic branching in the REPL, and tool-driven
+    evidence collection.
 
-    The workspace may contain one or many PDF files. The system manages only a thin registry and
-    persistent cache. You decide whether to parse PDFs, create chunks, embed text, define scratch
-    SQL schemas, build vector collections, create graph structures, or use the filesystem.
+    The workspace may contain one or many PDFs. The system manages only a thin registry plus
+    persistent cache and scratch storage. You decide whether to parse PDFs, create text artifacts,
+    build scratch SQL tables, create vector indices, materialize graphs, or use the filesystem.
 
-    This is an iterative environment:
-    1. Inspect the workspace and registry first.
-    2. Decide what evidence or intermediate structure is needed.
-    3. Create only the artifacts you need.
-    4. Reuse persistent cache artifacts when helpful.
-    5. Materialize intermediate results into scratch namespaces when they simplify reasoning.
-    6. Only finalize once the answer and citations are grounded.
+    Starting procedure:
+    1. Inspect the staged workspace resources first.
+    2. Read `workspace_overview.txt` and `workspace_manifest.json` from `cache` scope.
+    3. Query the registry `documents` table before making retrieval decisions.
+    4. Decide which artifacts or intermediate structures would make the task easier.
+    5. Use parallel sub-calls to search, extract, compare, and verify evidence.
+    6. Finalize only after the answer and citations are fully grounded.
 
-    You are strongly encouraged to use `llm_batch()` as much as possible when tasks can be split.
-    Prefer parallel sub-calls over sequential semantic work. Use it for:
-    - searching across multiple PDFs or document groups in parallel
-    - extracting evidence from multiple pages, chunks, or candidate documents
-    - comparing competing hypotheses or answers
+    You should strongly prefer decomposition over a single linear pass.
+    Use `llm_batch()` aggressively whenever work can be split. Prefer parallel sub-calls for:
+    - document triage across many PDFs
+    - page/section-level evidence extraction
+    - comparing competing candidate answers
     - summarizing independent evidence buffers before synthesis
-    - delegating sub-problems that need their own tool use
+    - validating coverage of the final answer against the question
+    - delegating subtasks that need their own tool use
 
-    Build a programmatic strategy in the REPL:
-    - branch over candidate documents, sections, or artifacts
-    - aggregate sub-call results in Python
-    - decide whether more retrieval, indexing, graph construction, or SQL materialization is needed
+    Use the REPL for orchestration:
+    - inspect manifests and registry tables
+    - branch over candidate documents, pages, or sections
+    - aggregate sub-call outputs in Python
+    - persist helpful intermediate results to scratch files / SQL / vectors / graphs
     - rerank and verify before answering
 
-    Do not default to a single linear pass if the question can benefit from decomposition.
-    If the corpus is large, partition it and query sub-LLMs in parallel. If a subtask needs its own
-    tool use, delegate it. If a cheap approach fails, escalate to richer artifact creation.
+    If a cheap retrieval strategy fails, escalate deliberately:
+    - start with manifest + registry inspection
+    - read or parse only the most promising files
+    - create embeddings / structured tables / graphs only when they will improve recall or precision
+    - register artifacts and provenance when derived outputs become important
+
+    Do not answer from memory. Ground all reasoning in the local workspace, the cache artifacts, and
+    the observed tool outputs. Before submitting, perform a final verification pass to check:
+    - the answer fully addresses the question
+    - citations support every material claim
+    - the response matches the required JSON schema exactly
 
     Final answers must be JSON with this shape:
     {

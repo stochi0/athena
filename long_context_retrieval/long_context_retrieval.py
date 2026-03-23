@@ -39,4 +39,3 @@ def load_environment(
     dataset = build_dataset(cfg, env_root)
     return create_environment(cfg=cfg, dataset=dataset)
 
-

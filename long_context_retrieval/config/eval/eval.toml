@@ -2,7 +2,7 @@
 
 save_results = true
 endpoints_path = "endpoints.toml"
-endpoint_id = "prime-openai-gpt-4.1-mini"
+endpoint_id = "eval_endpoint"
 num_examples = 1
 rollouts_per_example = 1
 max_concurrent = 1
