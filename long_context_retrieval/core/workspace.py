@@ -17,7 +17,7 @@ from .settings import (
     VECTOR_DIRNAME,
     WORKSPACE_STATE_DIRNAME,
 )
-from .types import WorkspaceConfig, WorkspacePaths
+from .types import WorkspaceConfig, WorkspacePaths, WorkspaceState
 from .utils import stable_document_id
 
 
@@ -33,6 +33,36 @@ def get_paths(config: WorkspaceConfig) -> WorkspacePaths:
         sql_root=state_root / SQL_DIRNAME,
         artifacts_root=state_root / ARTIFACTS_DIRNAME,
         scratch_root=state_root / SCRATCH_DIRNAME,
+    )
+
+
+def build_workspace_state(paths: WorkspacePaths) -> WorkspaceState:
+    document_count = sum(1 for _ in paths.workspace_root.rglob("*.pdf"))
+    return {
+        "workspace_dir": str(paths.workspace_root),
+        "workspace_state_root": str(paths.state_root),
+        "registry_db": str(paths.registry_db),
+        "vector_root": str(paths.vector_root),
+        "graph_root": str(paths.graph_root),
+        "sql_root": str(paths.sql_root),
+        "artifacts_root": str(paths.artifacts_root),
+        "scratch_root": str(paths.scratch_root),
+        "document_count": document_count,
+    }
+
+
+def get_paths_from_workspace_state(workspace: WorkspaceState | dict[str, Any]) -> WorkspacePaths:
+    workspace_dir = workspace.get("workspace_dir")
+    state_root = workspace.get("workspace_state_root")
+    if not workspace_dir:
+        raise RuntimeError("Workspace directory is not configured.")
+    if not state_root:
+        raise RuntimeError("Workspace state root is not configured.")
+    return get_paths(
+        WorkspaceConfig(
+            workspace_root=Path(str(workspace_dir)),
+            state_root=Path(str(state_root)),
+        )
     )
 
 

@@ -37,5 +37,5 @@ def load_environment(
         else _pkg_dir
     )
     dataset = build_dataset(cfg, env_root)
-    return create_environment(cfg=cfg, dataset=dataset)
+    return create_environment(cfg=cfg, dataset=dataset, workspace_anchor=env_root)
 

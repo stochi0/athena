@@ -6,6 +6,7 @@ endpoint_id = "eval_endpoint"
 num_examples = 1
 rollouts_per_example = 1
 max_concurrent = 1
+state_columns = ["workspace"]
 
 [[eval]]
 env_id = "long_context_retrieval"

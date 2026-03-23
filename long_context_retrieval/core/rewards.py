@@ -78,10 +78,24 @@ async def retrieval_efficiency(state: vf.State) -> float:
     return max(0.0, 1.0 - (redundant / len(invocations)))
 
 
+async def workspace_document_count(state: vf.State) -> int:
+    workspace = state.get("workspace", {})
+    if not isinstance(workspace, dict):
+        return 0
+    value = workspace.get("document_count", 0)
+    return int(value) if isinstance(value, (int, float)) else 0
+
+
+async def workspace_has_documents(state: vf.State) -> int:
+    return 1 if await workspace_document_count(state) > 0 else 0
+
+
 def build_default_rubric(root_tool_names: list[str] | None = None) -> vf.Rubric:
     rubric = RLMMonitorRubric(root_tool_names=root_tool_names)
     rubric.add_reward_func(correctness, weight=1.0)
     rubric.add_reward_func(citation_support, weight=0.35)
     rubric.add_reward_func(grounded_tool_use, weight=0.2)
     rubric.add_reward_func(retrieval_efficiency, weight=0.15)
+    rubric.add_metric(workspace_document_count)
+    rubric.add_metric(workspace_has_documents)
     return rubric

@@ -14,6 +14,11 @@ from .context_builder import prepare_rows
 from .rewards import build_default_rubric
 from .settings import Config, SYSTEM_PROMPT
 from .tools import WorkspaceTools
+from .workspace import (
+    build_workspace_state,
+    ensure_workspace,
+    get_paths_from_workspace_state,
+)
 
 load_dotenv()
 
@@ -27,8 +32,18 @@ class LongContextRetrievalEnv(WorkspaceTools, RLMEnv):
         cfg: Config,
         dataset: Any = None,
         rubric: vf.Rubric | None = None,
+        workspace_anchor: Path | None = None,
         **kwargs: Any,
     ) -> None:
+        self._workspace_anchor = (
+            workspace_anchor.resolve()
+            if workspace_anchor is not None
+            else (
+                Path(cfg.path_anchor).resolve()
+                if cfg.path_anchor
+                else Path.cwd().resolve()
+            )
+        )
         self._subtool_state_var: contextvars.ContextVar[dict[str, Any] | None] = (
             contextvars.ContextVar("long_context_retrieval_env_subtool_state", default=None)
         )
@@ -80,6 +95,25 @@ class LongContextRetrievalEnv(WorkspaceTools, RLMEnv):
             **kwargs,
         )
 
+    async def setup_state(self, state: vf.State, **kwargs: Any) -> vf.State:
+        info = state.get("info") or {}
+        if not isinstance(info, dict):
+            info = {}
+
+        normalized_info = ensure_workspace(info, self._workspace_anchor)
+        workspace = build_workspace_state(get_paths_from_workspace_state(normalized_info))
+
+        staged_info = dict(normalized_info)
+        staged_info["context_dir"] = workspace["workspace_dir"]
+        state["info"] = staged_info
+        state["workspace"] = workspace
+
+        state = await super().setup_state(state, **kwargs)
+
+        state["info"] = normalized_info
+        state["workspace"] = workspace
+        return state
+
     async def env_response(
         self,
         messages: vf.Messages,
@@ -95,8 +129,16 @@ def create_environment(
     cfg: Config,
     dataset: Any,
     rubric: vf.Rubric | None = None,
+    workspace_anchor: Path | None = None,
     **kwargs: Any,
 ) -> vf.Environment:
     if not isinstance(dataset, Dataset):
-        dataset = Dataset.from_list(prepare_rows(list(dataset), Path.cwd()))
-    return LongContextRetrievalEnv(cfg=cfg, dataset=dataset, rubric=rubric, **kwargs)
+        anchor = workspace_anchor.resolve() if workspace_anchor else Path.cwd().resolve()
+        dataset = Dataset.from_list(prepare_rows(list(dataset), anchor))
+    return LongContextRetrievalEnv(
+        cfg=cfg,
+        dataset=dataset,
+        rubric=rubric,
+        workspace_anchor=workspace_anchor,
+        **kwargs,
+    )

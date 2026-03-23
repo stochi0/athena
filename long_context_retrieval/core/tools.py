@@ -4,9 +4,8 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
-from .types import WorkspaceConfig
 from .utils import ensure_json, json_safe
-from .workspace import get_paths
+from .workspace import get_paths_from_workspace_state
 
 
 class WorkspaceTools:
@@ -23,19 +22,10 @@ class WorkspaceTools:
         return state
 
     def _paths(self, state: dict[str, Any]):
-        info = state.get("info") or {}
-        state_root = info.get("workspace_state_root")
-        workspace_root = info.get("workspace_dir")
-        if not workspace_root:
-            raise RuntimeError("Workspace root is not configured.")
-        if not state_root:
-            raise RuntimeError("Workspace state root is not configured.")
-        return get_paths(
-            WorkspaceConfig(
-                workspace_root=Path(str(workspace_root)),
-                state_root=Path(str(state_root)),
-            )
-        )
+        workspace = state.get("workspace")
+        if not isinstance(workspace, dict):
+            raise RuntimeError("Workspace state is not initialized.")
+        return get_paths_from_workspace_state(workspace)
 
     def _rollout_id(self, state: dict[str, Any]) -> str:
         return str(state.get("rollout_id", "default"))
