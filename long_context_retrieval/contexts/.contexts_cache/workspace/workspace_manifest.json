@@ -1,0 +1,17 @@
+{
+  "workspace_root": "/Users/ayushb/home/workspaces/prime_intellect/athena/long_context_retrieval/contexts/workspace",
+  "cache_root": "/Users/ayushb/home/workspaces/prime_intellect/athena/long_context_retrieval/contexts/.contexts_cache/workspace",
+  "registry_db": "/Users/ayushb/home/workspaces/prime_intellect/athena/long_context_retrieval/contexts/.contexts_cache/workspace/registry.db",
+  "documents": [
+    "pdfs/1904.07982v1.pdf",
+    "pdfs/1904.08010v1.pdf",
+    "pdfs/2012.10226v1.pdf",
+    "pdfs/2012.11327v1.pdf",
+    "pdfs/2012.11333v1.pdf",
+    "pdfs/2012.11876v1.pdf",
+    "pdfs/2012.13569v1.pdf",
+    "pdfs/2012.13980v1.pdf",
+    "pdfs/2012.14005v1.pdf",
+    "pdfs/2012.14234v1.pdf"
+  ]
+}

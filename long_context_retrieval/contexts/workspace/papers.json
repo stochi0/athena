@@ -1,0 +1,150 @@
+[
+  {
+    "arxiv_id": "2012.11327v1",
+    "title": "Collaborative residual learners for automatic icd10 prediction using prescribed medications",
+    "summary": "Clinical coding is an administrative process that involves the translation of diagnostic data from episodes of care into a standard code format such as ICD10. It has many critical applications such as billing and aetiology research. The automation of clinical coding is very challenging due to data sparsity, low interoperability of digital health systems, complexity of real-life diagnosis coupled with the huge size of ICD10 code space. Related work suffer from low applicability due to reliance on many data sources, inefficient modelling and less generalizable solutions. We propose a novel collaborative residual learning based model to automatically predict ICD10 codes employing only prescriptions data. Extensive experiments were performed on two real-world clinical datasets (outpatient & inpatient) from Maharaj Nakorn Chiang Mai Hospital with real case-mix distributions. We obtain multi-label classification accuracy of 0.71 and 0.57 of average precision, 0.57 and 0.38 of F1-score and 0.73 and 0.44 of accuracy in predicting principal diagnosis for inpatient and outpatient datasets respectively.",
+    "authors": [
+      "Yassien Shaalan",
+      "Alexander Dokumentov",
+      "Piyapong Khumrin",
+      "Krit Khwanngern",
+      "Anawat Wisetborisu",
+      "Thanakom Hatsadeang",
+      "Nattapat Karaket",
+      "Witthawin Achariyaviriya",
+      "Sansanee Auephanwiriyakul",
+      "Nipon Theera-Umpon",
+      "Terence Siganakis"
+    ],
+    "published": "2020-12-16T07:07:27Z",
+    "updated": "2020-12-16T07:07:27Z",
+    "pdf_url": "https://arxiv.org/pdf/2012.11327v1"
+  },
+  {
+    "arxiv_id": "2012.11333v1",
+    "title": "Ensemble model for pre-discharge icd10 coding prediction",
+    "summary": "The translation of medical diagnosis to clinical coding has wide range of applications in billing, aetiology analysis, and auditing. Currently, coding is a manual effort while the automation of such task is not straight forward. Among the challenges are the messy and noisy clinical records, case complexities, along with the huge ICD10 code space. Previous work mainly relied on discharge notes for prediction and was applied to a very limited data scale. We propose an ensemble model incorporating multiple clinical data sources for accurate code predictions. We further propose an assessment mechanism to provide confidence rates in predicted outcomes. Extensive experiments were performed on two new real-world clinical datasets (inpatient & outpatient) with unaltered case-mix distributions from Maharaj Nakorn Chiang Mai Hospital. We obtain multi-label classification accuracies of 0.73 and 0.58 for average precision, 0.56 and 0.35 for F1-scores and 0.71 and 0.4 accuracy in predicting principal diagnosis for inpatient and outpatient datasets respectively.",
+    "authors": [
+      "Yassien Shaalan",
+      "Alexander Dokumentov",
+      "Piyapong Khumrin",
+      "Krit Khwanngern",
+      "Anawat Wisetborisu",
+      "Thanakom Hatsadeang",
+      "Nattapat Karaket",
+      "Witthawin Achariyaviriya",
+      "Sansanee Auephanwiriyakul",
+      "Nipon Theera-Umpon",
+      "Terence Siganakis"
+    ],
+    "published": "2020-12-16T07:02:56Z",
+    "updated": "2020-12-16T07:02:56Z",
+    "pdf_url": "https://arxiv.org/pdf/2012.11333v1"
+  },
+  {
+    "arxiv_id": "2012.10226v1",
+    "title": "Should I visit this place? Inclusion and Exclusion Phrase Mining from Reviews",
+    "summary": "Although several automatic itinerary generation services have made travel planning easy, often times travellers find themselves in unique situations where they cannot make the best out of their trip. Visitors differ in terms of many factors such as suffering from a disability, being of a particular dietary preference, travelling with a toddler, etc. While most tourist spots are universal, others may not be inclusive for all. In this paper, we focus on the problem of mining inclusion and exclusion phrases associated with 11 such factors, from reviews related to a tourist spot. While existing work on tourism data mining mainly focuses on structured extraction of trip related information, personalized sentiment analysis, and automatic itinerary generation, to the best of our knowledge this is the first work on inclusion/exclusion phrase mining from tourism reviews. Using a dataset of 2000 reviews related to 1000 tourist spots, our broad level classifier provides a binary overlap F1 of $\\sim$80 and $\\sim$82 to classify a phrase as inclusion or exclusion respectively. Further, our inclusion/exclusion classifier provides an F1 of $\\sim$98 and $\\sim$97 for 11-class inclusion and exclusion classification respectively. We believe that our work can significantly improve the quality of an automatic itinerary generation service.",
+    "authors": [
+      "Omkar Gurjar",
+      "Manish Gupta"
+    ],
+    "published": "2020-12-18T13:43:13Z",
+    "updated": "2020-12-18T13:43:13Z",
+    "pdf_url": "https://arxiv.org/pdf/2012.10226v1"
+  },
+  {
+    "arxiv_id": "2012.11876v1",
+    "title": "Intelligent Vector-based Customer Segmentation in the Banking Industry",
+    "summary": "Customer Segmentation is the process of dividing customers into groups based on common characteristics. An intelligent Customer Segmentation will not only enable an organization to effectively allocate marketing resources (e.g., Recommender Systems in the Banking sector) but also it will enable identifying the customer cohorts that are most likely to benefit from a specific policy (e.g., to discover diverse patient groups in the Health sector). While there has been a significant improvement in approaches to Customer Segmentation, the main challenge remains to be the understanding of the reasons behind the segmentation need. This task is challenging as it is subjective and depends on the goal of segmentation as well as the analyst's perspective. To address this challenge, in this paper, we present an intelligent vector-based customer segmentation approach. The proposed approach will leverage feature engineering to enable analysts to identify important features (from a pool of features such as demographics, geography, psychographics, behavioral, and more) and feed them into a neural embedding framework named Customer2Vec. The Customer2Vec combines the neural network classification and clustering methods as supervised and unsupervised learning techniques to embed the customer vector. We adopt a typical scenario in the Banking Sector to highlight how Customer2Vec significantly improves the quality of the segmentation and detecting customer similarities.",
+    "authors": [
+      "Salman Mousaeirad"
+    ],
+    "published": "2020-12-22T08:27:42Z",
+    "updated": "2020-12-22T08:27:42Z",
+    "pdf_url": "https://arxiv.org/pdf/2012.11876v1"
+  },
+  {
+    "arxiv_id": "2012.13569v1",
+    "title": "Dynamic-K Recommendation with Personalized Decision Boundary",
+    "summary": "In this paper, we investigate the recommendation task in the most common scenario with implicit feedback (e.g., clicks, purchases). State-of-the-art methods in this direction usually cast the problem as to learn a personalized ranking on a set of items (e.g., webpages, products). The top-N results are then provided to users as recommendations, where the N is usually a fixed number pre-defined by the system according to some heuristic criteria (e.g., page size, screen size). There is one major assumption underlying this fixed-number recommendation scheme, i.e., there are always sufficient relevant items to users' preferences. Unfortunately, this assumption may not always hold in real-world scenarios. In some applications, there might be very limited candidate items to recommend, and some users may have very high relevance requirement in recommendation. In this way, even the top-1 ranked item may not be relevant to a user's preference. Therefore, we argue that it is critical to provide a dynamic-K recommendation, where the K should be different with respect to the candidate item set and the target user. We formulate this dynamic-K recommendation task as a joint learning problem with both ranking and classification objectives. The ranking objective is the same as existing methods, i.e., to create a ranking list of items according to users' interests. The classification objective is unique in this work, which aims to learn a personalized decision boundary to differentiate the relevant items from irrelevant items. Based on these ideas, we extend two state-of-the-art ranking-based recommendation methods, i.e., BPRMF and HRM, to the corresponding dynamic-K versions, namely DK-BPRMF and DK-HRM. Our experimental results on two datasets show that the dynamic-K models are more effective than the original fixed-N recommendation methods.",
+    "authors": [
+      "Yan Gao",
+      "Jiafeng Guo",
+      "Yanyan Lan",
+      "Huaming Liao"
+    ],
+    "published": "2020-12-25T13:02:57Z",
+    "updated": "2020-12-25T13:02:57Z",
+    "pdf_url": "https://arxiv.org/pdf/2012.13569v1"
+  },
+  {
+    "arxiv_id": "2012.14234v1",
+    "title": "Recommending Courses in MOOCs for Jobs: An Auto Weak Supervision Approach",
+    "summary": "The proliferation of massive open online courses (MOOCs) demands an effective way of course recommendation for jobs posted in recruitment websites, especially for the people who take MOOCs to find new jobs. Despite the advances of supervised ranking models, the lack of enough supervised signals prevents us from directly learning a supervised ranking model. This paper proposes a general automated weak supervision framework AutoWeakS via reinforcement learning to solve the problem. On the one hand, the framework enables training multiple supervised ranking models upon the pseudo labels produced by multiple unsupervised ranking models. On the other hand, the framework enables automatically searching the optimal combination of these supervised and unsupervised models. Systematically, we evaluate the proposed model on several datasets of jobs from different recruitment websites and courses from a MOOCs platform. Experiments show that our model significantly outperforms the classical unsupervised, supervised and weak supervision baselines.",
+    "authors": [
+      "Bowen Hao",
+      "Jing Zhang",
+      "Cuiping Li",
+      "Hong Chen",
+      "Hongzhi Yin"
+    ],
+    "published": "2020-12-28T14:03:18Z",
+    "updated": "2020-12-28T14:03:18Z",
+    "pdf_url": "https://arxiv.org/pdf/2012.14234v1"
+  },
+  {
+    "arxiv_id": "2012.13980v1",
+    "title": "Measuring University Impact: Wikipedia approach",
+    "summary": "The impact of Universities on the social, economic and political landscape is one of the key directions in contemporary educational evaluation. In this paper, we discuss the new methodological technique that evaluates the impact of university based on popularity (number of page-views) of their alumni's pages on Wikipedia. It allows revealing the alumni popularity dynamics and tracking its state. Preliminary analysis shows that the number of page-views is higher for the contemporary persons that prove the perspectives of this approach. Then, universities were ranked based on the methodology and compared to the famous international university rankings ARWU and QS based only on alumni scales: for the top 10 universities, there is an intersection of two universities (Columbia University, Stanford University). The correlation coefficients between different university rankings are provided in the paper. Finally, the ranking based on the alumni popularity was compared with the ranking of universities based on the popularity of their webpages on Wikipedia: there is a strong connection between these indicators.",
+    "authors": [
+      "Tatiana Kozitsina",
+      "Viacheslav Goiko",
+      "Roman Palkin",
+      "Valentin Khomutenko",
+      "Yulia Mundrievskaya",
+      "Maria Sukhareva",
+      "Isak Froumin",
+      "Mikhail Myagkov"
+    ],
+    "published": "2020-12-27T17:41:56Z",
+    "updated": "2020-12-27T17:41:56Z",
+    "pdf_url": "https://arxiv.org/pdf/2012.13980v1"
+  },
+  {
+    "arxiv_id": "2012.14005v1",
+    "title": "Neural document expansion for ad-hoc information retrieval",
+    "summary": "Recently, Nogueira et al. [2019] proposed a new approach to document expansion based on a neural Seq2Seq model, showing significant improvement on short text retrieval task. However, this approach needs a large amount of in-domain training data. In this paper, we show that this neural document expansion approach can be effectively adapted to standard IR tasks, where labels are scarce and many long documents are present.",
+    "authors": [
+      "Cheng Tang",
+      "Andrew Arnold"
+    ],
+    "published": "2020-12-27T20:00:08Z",
+    "updated": "2020-12-27T20:00:08Z",
+    "pdf_url": "https://arxiv.org/pdf/2012.14005v1"
+  },
+  {
+    "arxiv_id": "1904.07982v1",
+    "title": "Query Expansion for Cross-Language Question Re-Ranking",
+    "summary": "Community question-answering (CQA) platforms have become very popular forums for asking and answering questions daily. While these forums are rich repositories of community knowledge, they present challenges for finding relevant answers and similar questions, due to the open-ended nature of informal discussions. Further, if the platform allows questions and answers in multiple languages, we are faced with the additional challenge of matching cross-lingual information. In this work, we focus on the cross-language question re-ranking shared task, which aims to find existing questions that may be written in different languages. Our contribution is an exploration of query expansion techniques for this problem. We investigate expansions based on Word Embeddings, DBpedia concepts linking, and Hypernym, and show that they outperform existing state-of-the-art methods.",
+    "authors": [
+      "Muhammad Mahbubur Rahman",
+      "Sorami Hisamoto",
+      "Kevin Duh"
+    ],
+    "published": "2019-04-16T20:55:59Z",
+    "updated": "2019-04-16T20:55:59Z",
+    "pdf_url": "https://arxiv.org/pdf/1904.07982v1"
+  },
+  {
+    "arxiv_id": "1904.08010v1",
+    "title": "How to define co-occurrence in different domains of study?",
+    "summary": "This position paper presents a comparative study of co-occurrences. Some similarities and differences in the definition exist depending on the research domain (e.g. linguistics, NLP, computer science). This paper discusses these points, and deals with the methodological aspects in order to identify co-occurrences in a multidisciplinary paradigm.",
+    "authors": [
+      "Mathieu Roche"
+    ],
+    "published": "2019-04-16T23:16:56Z",
+    "updated": "2019-04-16T23:16:56Z",
+    "pdf_url": "https://arxiv.org/pdf/1904.08010v1"
+  }
+]

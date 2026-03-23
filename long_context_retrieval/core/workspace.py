@@ -8,39 +8,39 @@ from typing import Any
 
 from pypdf import PdfReader
 
-from .constants import (
-    DEFAULT_ARTIFACTS_DIRNAME,
-    DEFAULT_CACHE_DIRNAME,
-    DEFAULT_GRAPH_DIRNAME,
-    DEFAULT_REGISTRY_DB_FILENAME,
-    DEFAULT_SCRATCH_DIRNAME,
-    DEFAULT_SQL_DIRNAME,
-    DEFAULT_VECTOR_DIRNAME,
+from .settings import (
+    ARTIFACTS_DIRNAME,
+    CACHE_DIRNAME,
+    GRAPH_DIRNAME,
+    REGISTRY_DB,
+    SCRATCH_DIRNAME,
+    SQL_DIRNAME,
+    VECTOR_DIRNAME,
 )
 from .types import WorkspaceConfig, WorkspacePaths
 from .utils import stable_document_id
 
 
-def resolve_workspace_paths(config: WorkspaceConfig) -> WorkspacePaths:
+def get_paths(config: WorkspaceConfig) -> WorkspacePaths:
     cache_root = config.cache_root.resolve()
     workspace_root = config.workspace_root.resolve()
     return WorkspacePaths(
         workspace_root=workspace_root,
         cache_root=cache_root,
-        registry_db=cache_root / DEFAULT_REGISTRY_DB_FILENAME,
-        vector_root=cache_root / DEFAULT_VECTOR_DIRNAME,
-        graph_root=cache_root / DEFAULT_GRAPH_DIRNAME,
-        sql_root=cache_root / DEFAULT_SQL_DIRNAME,
-        artifacts_root=cache_root / DEFAULT_ARTIFACTS_DIRNAME,
-        scratch_root=cache_root / DEFAULT_SCRATCH_DIRNAME,
+        registry_db=cache_root / REGISTRY_DB,
+        vector_root=cache_root / VECTOR_DIRNAME,
+        graph_root=cache_root / GRAPH_DIRNAME,
+        sql_root=cache_root / SQL_DIRNAME,
+        artifacts_root=cache_root / ARTIFACTS_DIRNAME,
+        scratch_root=cache_root / SCRATCH_DIRNAME,
     )
 
 
 def _default_cache_root(workspace_root: Path) -> Path:
-    return workspace_root.parent / DEFAULT_CACHE_DIRNAME / workspace_root.name
+    return workspace_root.parent / CACHE_DIRNAME / workspace_root.name
 
 
-def build_workspace_from_pdf_sources(
+def build_workspace(
     *,
     pdf_paths: list[str],
     workspace_root: str | None = None,
@@ -98,7 +98,7 @@ def ensure_workspace(info: dict[str, Any], anchor: Path) -> dict[str, Any]:
         else:
             pdf_root = pdf_root.resolve()
         paths = sorted(str(path) for path in pdf_root.rglob("*.pdf"))
-        config = build_workspace_from_pdf_sources(
+        config = build_workspace(
             pdf_paths=paths,
             workspace_root=str(normalized.get("workspace_root") or pdf_root),
             cache_root=normalized.get("workspace_cache_root"),
@@ -112,7 +112,7 @@ def ensure_workspace(info: dict[str, Any], anchor: Path) -> dict[str, Any]:
             else:
                 path = path.resolve()
             resolved_pdf_paths.append(str(path))
-        config = build_workspace_from_pdf_sources(
+        config = build_workspace(
             pdf_paths=resolved_pdf_paths,
             workspace_root=normalized.get("workspace_root"),
             cache_root=normalized.get("workspace_cache_root"),
@@ -122,15 +122,15 @@ def ensure_workspace(info: dict[str, Any], anchor: Path) -> dict[str, Any]:
             "Workspace info must include one of: workspace_dir/context_dir, pdf_dir, or pdf_paths."
         )
 
-    paths = resolve_workspace_paths(config)
-    initialize_workspace(paths)
+    paths = get_paths(config)
+    init_workspace(paths)
     normalized["workspace_dir"] = str(paths.workspace_root)
     normalized["workspace_cache_root"] = str(paths.cache_root)
     normalized["context_dir"] = str(paths.workspace_root)
     return normalized
 
 
-def initialize_workspace(paths: WorkspacePaths) -> None:
+def init_workspace(paths: WorkspacePaths) -> None:
     paths.cache_root.mkdir(parents=True, exist_ok=True)
     paths.vector_root.mkdir(parents=True, exist_ok=True)
     paths.graph_root.mkdir(parents=True, exist_ok=True)
@@ -215,22 +215,16 @@ def register_document(
     conn: sqlite3.Connection, paths: WorkspacePaths, pdf_path: Path
 ) -> None:
     metadata: dict[str, Any] = {}
-    title = None
-    author = None
-    page_count = None
-    try:
-        reader = PdfReader(str(pdf_path))
-        info = reader.metadata or {}
-        page_count = len(reader.pages)
-        title = getattr(info, "title", None) or info.get("/Title")
-        author = getattr(info, "author", None) or info.get("/Author")
-        metadata["pdf_metadata"] = {
-            "title": title,
-            "author": author,
-            "page_count": page_count,
-        }
-    except Exception as exc:
-        metadata["pdf_error"] = str(exc)
+    reader = PdfReader(str(pdf_path))
+    info = reader.metadata or {}
+    page_count = len(reader.pages)
+    title = getattr(info, "title", None) or info.get("/Title")
+    author = getattr(info, "author", None) or info.get("/Author")
+    metadata["pdf_metadata"] = {
+        "title": title,
+        "author": author,
+        "page_count": page_count,
+    }
 
     document_id = stable_document_id(pdf_path)
     conn.execute(
@@ -261,3 +255,4 @@ def register_document(
             json.dumps(metadata, sort_keys=True),
         ),
     )
+

@@ -1,0 +1,26 @@
+# Minimal RL run (2 examples) — smoke test for Hosted Training.
+#   prime rl run config/rl/long-context-retrieval.toml -e WANDB_API_KEY -e PRIME_API_KEY -e OPENAI_API_KEY
+
+name = "long-context-retrieval-2ex-test"
+model = "Qwen/Qwen3-30B-A3B-Instruct-2507"
+max_steps = 2
+batch_size = 2
+rollouts_per_example = 1
+# trajectory_strategy = "interleaved"  # or "branching"
+# learning_rate = 1e-4
+# lora_alpha = 16
+# oversampling_factor = 2.0
+# max_async_level = 2
+# Use Prime Inference: set both PRIME_API_KEY and OPENAI_API_KEY.
+# Or use env_file (create secrets.env with both keys and optionally OPENAI_BASE_URL=https://api.pinference.ai/api/v1):
+# env_file = ["secrets.env"]
+
+[[env]]
+id = "YOUR_USERNAME/long_context_retrieval"
+args = { dataset_path = "contexts/dataset.jsonl", max_examples = 2 }
+
+[wandb]
+project = "long-context-retrieval"
+# Must be a W&B *team* (personal entities are disabled). Create/use a team at wandb.ai
+entity = "YOUR_WANDB_TEAM"
+name = "qwen3-30b-i-long-context-retrieval-2ex"

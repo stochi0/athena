@@ -33,7 +33,7 @@ rollouts_per_example = 1
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-pythonpath = ["src"]
+pythonpath = ["."]
 
 [dependency-groups]
 dev = [

@@ -1,0 +1,8 @@
+{
+  "query": "cat:cs.IR",
+  "max_papers": 10,
+  "num_rows": 10,
+  "workspace_root": "contexts/workspace",
+  "dataset_dir": "contexts/dataset_hf",
+  "jsonl_path": "contexts/dataset.jsonl"
+}

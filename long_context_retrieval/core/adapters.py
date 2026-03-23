@@ -149,10 +149,7 @@ class VectorAdapter:
         where = ensure_json(where_json, {}, "where_json")
         if not isinstance(where, dict):
             raise ValueError("where_json must decode to an object.")
-        try:
-            target = client.get_collection(collection)
-        except Exception:
-            return []
+        target = client.get_collection(collection)
         result = target.query(
             query_texts=[query],
             n_results=max(1, n),
@@ -213,10 +210,7 @@ class VectorAdapter:
         ids = ensure_json(ids_json, [], "ids_json")
         where = ensure_json(where_json, {}, "where_json")
         client = self._client(paths=paths, scope=scope, rollout_id=rollout_id)
-        try:
-            target = client.get_collection(collection)
-        except Exception:
-            return {"ok": True, "collection": collection, "scope": scope, "deleted": 0}
+        target = client.get_collection(collection)
         target.delete(ids=ids or None, where=where or None)
         return {"ok": True, "collection": collection, "scope": scope}
 

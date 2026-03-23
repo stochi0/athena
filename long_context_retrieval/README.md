@@ -1,4 +1,4 @@
-# long-context-retrieval
+# Long Context Retrieval
 
 `long-context-retrieval` is a Prime / `verifiers` `RLMEnv` for autonomous question answering over one or more research-paper PDFs in a local workspace.
 
@@ -13,10 +13,27 @@ The environment gives the model:
 The model decides whether to parse PDFs, chunk text, create embeddings, define scratch schemas, build graphs, or reuse cached artifacts.
 The root RLM is explicitly prompted to decompose work aggressively and use `llm_batch()` in parallel whenever the task can be split. Delegated sub-LLMs inherit the same shared SQL/vector/graph/filesystem/provenance tool surface.
 
-## Install
+## Quickstart
 
 ```bash
 uv sync
+```
+
+### Run (from `long_context_retrieval/`)
+
+```bash
+cd long_context_retrieval
+uv run prime eval run eval.toml --skip-upload
+```
+
+### Hosted RL (2-example smoke test)
+
+1. Push the environment to the Hub.
+2. In `config/rl/long-context-retrieval.toml`, set `[[env]].id` to your Hub env.
+3. Start the run:
+
+```bash
+prime rl run config/rl/long-context-retrieval.toml -e WANDB_API_KEY -e OPENAI_API_KEY
 ```
 
 ## Workspace Model
@@ -91,6 +108,27 @@ env = load_environment(
 
 You can also pass `pdf_dir` or `pdf_paths` instead of `workspace_dir`.
 
+## Config
+
+`load_environment(config)` accepts a dict (or `Config`) with:
+
+- `dataset_path` (`str | None`): JSONL path or HF dataset directory, resolved relative to the env root when not absolute
+- `dataset_output_dir` (`str`, default `"contexts"`): fallback location for staged `dataset_hf/`
+- `workspace_dir`, `pdf_dir`, `pdf_paths`, `workspace_cache_root`: workspace inputs when not loading from a dataset
+- `max_examples` (`int | None`): cap rows before dataset creation
+- `rlm_model` (`str | None`): sub-model passed to the recursive env
+- `max_turns`, `repl_language`, `sub_llm_max_turns`, `sub_prompt_verbosity`, `root_prompt_verbosity`
+- `pip_install_packages`, `code_execution_timeout`, `max_output_length`
+
+Example:
+
+```bash
+prime eval run long_context_retrieval -a '{"workspace_dir": "/abs/path/to/workspace", "max_turns": 30, "max_examples": 2}'
+```
+
+Local runs expect credentials to already be present in your environment (for example via `.env`).
+If you use Prime Inference, set both `PRIME_API_KEY` and `OPENAI_API_KEY` explicitly in `.env`.
+
 ### Load from a dataset path
 
 ```python
@@ -108,6 +146,7 @@ from datasets import Dataset
 
 from core.environment import create_environment
 from core.rewards import build_default_rubric
+from core.settings import Config
 
 dataset = Dataset.from_list(
     [
@@ -124,7 +163,11 @@ dataset = Dataset.from_list(
     ]
 )
 
-env = create_environment(dataset=dataset, rubric=build_default_rubric())
+env = create_environment(
+    cfg=Config(workspace_dir="/abs/path/to/workspace"),
+    dataset=dataset,
+    rubric=build_default_rubric(),
+)
 ```
 
 ## Dataset Generation
@@ -132,7 +175,7 @@ env = create_environment(dataset=dataset, rubric=build_default_rubric())
 Generate a shared arXiv-backed PDF workspace plus dataset rows:
 
 ```bash
-uv run python scripts/build_dataset.py --query "cat:cs.IR" --max-papers 10
+uv run python scripts/generate_dataset.py --query "cat:cs.IR" --max-papers 10
 ```
 
 This creates:
@@ -170,4 +213,4 @@ Run eval:
 prime eval run eval.toml --skip-upload
 ```
 
-The eval config in this repo uses `env_id = "long_context_retrieval"`.
+The environment id is `long_context_retrieval`, and the hosted RL config follows the same `config/rl/*.toml` pattern as `discover_gsm8k`.

@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 import time
 from collections import Counter, defaultdict
 from datetime import datetime
@@ -15,15 +16,17 @@ from xml.etree import ElementTree as ET
 import requests
 from datasets import Dataset
 
-from paper_workspace_rlm_env.constants import (
-    DEFAULT_CACHE_DIRNAME,
-    DEFAULT_DATASET_OUTPUT_DIR,
-)
-from paper_workspace_rlm_env.types import WorkspaceConfig
-from paper_workspace_rlm_env.workspace import (
-    initialize_workspace,
-    resolve_workspace_paths,
-)
+try:
+    from core.settings import CACHE_DIRNAME, CONTEXTS_DIR
+    from core.types import WorkspaceConfig
+    from core.workspace import get_paths, init_workspace
+except ModuleNotFoundError:
+    PROJECT_ROOT = Path(__file__).resolve().parents[1]
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
+    from core.settings import CACHE_DIRNAME, CONTEXTS_DIR
+    from core.types import WorkspaceConfig
+    from core.workspace import get_paths, init_workspace
 
 
 ARXIV_API = "https://export.arxiv.org/api/query"
@@ -226,22 +229,18 @@ def build_workspace(output_dir: Path, papers: list[dict[str, Any]]) -> Path:
 
     for paper in papers:
         pdf_name = safe_filename(f"{paper['arxiv_id']}.pdf")
-        try:
-            download_pdf(paper["pdf_url"], pdf_dir / pdf_name)
-        except Exception as exc:
-            error_path = workspace_root / f"{paper['arxiv_id']}_download_error.txt"
-            error_path.write_text(str(exc), encoding="utf-8")
+        download_pdf(paper["pdf_url"], pdf_dir / pdf_name)
 
     metadata_path = workspace_root / "papers.json"
     metadata_path.write_text(
         json.dumps(papers, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    initialize_workspace(
-        resolve_workspace_paths(
+    init_workspace(
+        get_paths(
             WorkspaceConfig(
                 workspace_root=workspace_root,
-                cache_root=output_dir / DEFAULT_CACHE_DIRNAME / workspace_root.name,
+                cache_root=output_dir / CACHE_DIRNAME / workspace_root.name,
             )
         )
     )
@@ -696,7 +695,7 @@ def generate_dataset(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Build an arXiv PDF workspace and HuggingFace-style dataset for paper-workspace-rlm-env.",
+        description="Generate an arXiv workspace and dataset for long-context-retrieval.",
     )
     parser.add_argument(
         "--query", type=str, default="cat:cs.IR", help="arXiv query string."
@@ -707,7 +706,7 @@ def main() -> None:
     parser.add_argument(
         "--output-dir",
         type=str,
-        default=f"./{DEFAULT_DATASET_OUTPUT_DIR}",
+        default=f"./{CONTEXTS_DIR}",
         help="Output directory.",
     )
     parser.add_argument(

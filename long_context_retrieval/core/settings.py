@@ -1,20 +1,31 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from textwrap import dedent
+from typing import Any
 
-DEFAULT_DATASET_OUTPUT_DIR = "contexts"
+CONTEXTS_DIR = "contexts"
 
-DEFAULT_CACHE_DIRNAME = ".contexts_cache"
-DEFAULT_REGISTRY_DB_FILENAME = "registry.db"
-DEFAULT_VECTOR_DIRNAME = "vector"
-DEFAULT_GRAPH_DIRNAME = "graphs"
-DEFAULT_SQL_DIRNAME = "sql"
-DEFAULT_ARTIFACTS_DIRNAME = "artifacts"
-DEFAULT_SCRATCH_DIRNAME = "scratch"
+CACHE_DIRNAME = ".contexts_cache"
+REGISTRY_DB = "registry.db"
+VECTOR_DIRNAME = "vector"
+GRAPH_DIRNAME = "graphs"
+SQL_DIRNAME = "sql"
+ARTIFACTS_DIRNAME = "artifacts"
+SCRATCH_DIRNAME = "scratch"
 
-DEFAULT_ROOT_PROMPT_VERBOSITY = "heavy"
-DEFAULT_SUB_PROMPT_VERBOSITY = "heavy"
-DEFAULT_REPL_LANGUAGE = "python"
+ROOT_PROMPT_VERBOSITY = "heavy"
+SUB_PROMPT_VERBOSITY = "heavy"
+REPL_LANGUAGE = "python"
+PIP_INSTALL_PACKAGES = "chromadb networkx pypdf"
+CODE_EXECUTION_TIMEOUT = 300
+MAX_OUTPUT_LENGTH = 8192
+MAX_TURNS = 20
+SUB_LLM_MAX_TURNS = 4
+ENV_ID = "long_context_retrieval"
+USER_PROMPT = (
+    "Answer the question using the research-paper workspace and provide citations."
+)
 
 SYSTEM_PROMPT = dedent(
     """
@@ -80,3 +91,62 @@ SYSTEM_PROMPT = dedent(
     - keep intermediate state explicit so later sub-calls can reuse it
     """
 ).strip()
+
+
+@dataclass(frozen=True)
+class Config:
+    dataset_path: str | None = None
+    dataset_output_dir: str = CONTEXTS_DIR
+    max_examples: int | None = None
+    rlm_model: str | None = None
+    max_turns: int = MAX_TURNS
+    repl_language: str = REPL_LANGUAGE
+    sub_llm_max_turns: int = SUB_LLM_MAX_TURNS
+    sub_prompt_verbosity: str = SUB_PROMPT_VERBOSITY
+    root_prompt_verbosity: str = ROOT_PROMPT_VERBOSITY
+    pip_install_packages: str = PIP_INSTALL_PACKAGES
+    code_execution_timeout: int = CODE_EXECUTION_TIMEOUT
+    max_output_length: int = MAX_OUTPUT_LENGTH
+    sub_max_completion_tokens: int | None = None
+    root_max_completion_tokens: int | None = None
+    path_anchor: str | None = None
+    context_dir: str | None = None
+    workspace_dir: str | None = None
+    pdf_dir: str | None = None
+    pdf_paths: list[str] | None = None
+    workspace_cache_root: str | None = None
+    env_id: str = ENV_ID
+
+    @classmethod
+    def from_input(cls, cfg: Config | dict[str, Any] | None) -> Config:
+        if cfg is None:
+            return cls()
+        if isinstance(cfg, cls):
+            return cfg
+        return cls(**{k: v for k, v in cfg.items() if k in cls.__dataclass_fields__})
+
+    def to_env_args(self) -> dict[str, Any]:
+        """Return JSON-serializable args for `vf.load_environment(env_id, env_args)`."""
+        return {
+            "dataset_path": self.dataset_path,
+            "dataset_output_dir": self.dataset_output_dir,
+            "max_examples": self.max_examples,
+            "rlm_model": self.rlm_model,
+            "max_turns": int(self.max_turns),
+            "repl_language": self.repl_language,
+            "sub_llm_max_turns": int(self.sub_llm_max_turns),
+            "sub_prompt_verbosity": self.sub_prompt_verbosity,
+            "root_prompt_verbosity": self.root_prompt_verbosity,
+            "pip_install_packages": self.pip_install_packages,
+            "code_execution_timeout": int(self.code_execution_timeout),
+            "max_output_length": int(self.max_output_length),
+            "sub_max_completion_tokens": self.sub_max_completion_tokens,
+            "root_max_completion_tokens": self.root_max_completion_tokens,
+            "path_anchor": self.path_anchor,
+            "context_dir": self.context_dir,
+            "workspace_dir": self.workspace_dir,
+            "pdf_dir": self.pdf_dir,
+            "pdf_paths": self.pdf_paths,
+            "workspace_cache_root": self.workspace_cache_root,
+            "env_id": self.env_id,
+        }

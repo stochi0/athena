@@ -20,10 +20,7 @@ def json_safe(value: Any) -> Any:
 def ensure_json(value: str | None, default: Any, label: str) -> Any:
     if value in (None, ""):
         return default
-    try:
-        return json.loads(value)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"{label} must be valid JSON.") from exc
+    return json.loads(value)
 
 
 def slugify(value: str) -> str:
@@ -48,10 +45,7 @@ def normalize_items(value: Any) -> list[str]:
         stripped = value.strip()
         if not stripped:
             return []
-        try:
-            decoded = json.loads(stripped)
-        except json.JSONDecodeError:
-            return [stripped]
+        decoded = json.loads(stripped)
         return normalize_items(decoded)
     if isinstance(value, dict):
         answer = value.get("answer")
@@ -73,10 +67,7 @@ def parse_final_answer_payload(value: Any) -> dict[str, Any]:
         stripped = value.strip()
         if not stripped:
             return {"answer": "", "citations": []}
-        try:
-            decoded = json.loads(stripped)
-        except json.JSONDecodeError:
-            return {"answer": stripped, "citations": []}
+        decoded = json.loads(stripped)
         if isinstance(decoded, dict):
             payload = decoded
         elif isinstance(decoded, list):
