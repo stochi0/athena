@@ -24,7 +24,7 @@ def _normalize_names(task_names: str | Sequence[str] | None) -> set[str] | None:
 
 def load_configurations(config: Config) -> tuple[list[dict[str, Any]], Path]:
     env_root = get_env_root()
-    loca_root = get_loca_root(config.loca_root)
+    loca_root = get_loca_root(**config.loca_root_kwargs())
     config_path = resolve_path(
         config.config_path,
         search_roots=(env_root, loca_root, Path.cwd()),

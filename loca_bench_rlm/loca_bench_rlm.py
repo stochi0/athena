@@ -45,7 +45,7 @@ class LOCABenchRLMEnv(RLMEnv):
     def __init__(self, config: Config):
         self.config = config
         self.env_root = get_env_root()
-        self.loca_root = get_loca_root(config.loca_root)
+        self.loca_root = get_loca_root(**config.loca_root_kwargs())
         ensure_loca_import_path(self.loca_root)
 
         dataset = build_dataset(config)
@@ -55,15 +55,15 @@ class LOCABenchRLMEnv(RLMEnv):
                 task_generated_metric,
                 final_answer_ready_metric,
             ],
-            weights=[1.0, 0.0, 0.0],
+            weights=[1.0, 0.5, 0.5],
         )
 
         super().__init__(
             dataset=dataset,
             rubric=rubric,
-            max_turns=config.max_turns,
+            max_iterations=config.max_turns,
             repl_language=config.repl_language,
-            sub_llm_max_turns=config.sub_llm_max_turns,
+            sub_tool_max_turns=config.sub_llm_max_turns,
             sub_model=config.sub_model,
             max_sub_llm_parallelism=config.max_sub_llm_parallelism,
             max_output_length=config.max_output_length,

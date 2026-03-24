@@ -10,6 +10,10 @@ class Config:
 
     config_path: str = "task_configs/debug.json"
     loca_root: str | None = None
+    loca_repo_url: str = "https://github.com/hkust-nlp/LOCA-bench.git"
+    loca_ref: str = "main"
+    loca_cache_dir: str = "~/.cache/loca-bench"
+    loca_sparse_checkout: bool = True
     task_names: str | list[str] | None = None
     max_examples: int | None = None
     shuffle: bool = False
@@ -44,3 +48,12 @@ class Config:
         valid_fields = cls.__dataclass_fields__
         filtered = {k: v for k, v in cfg.items() if k in valid_fields}
         return cls(**filtered)
+
+    def loca_root_kwargs(self) -> dict[str, Any]:
+        return {
+            "loca_root": self.loca_root,
+            "repo_url": self.loca_repo_url,
+            "ref": self.loca_ref,
+            "cache_dir": self.loca_cache_dir,
+            "sparse_checkout": self.loca_sparse_checkout,
+        }
