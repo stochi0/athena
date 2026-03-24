@@ -30,7 +30,7 @@ def test_pass_at_k_matches_expected_zero_and_one_edges() -> None:
 def test_native_reward_uses_native_result_payload() -> None:
     rubric = NativeRewardRubric()
     state = {
-        "info": {
+        PRIVATE_METADATA_KEY: {
             "native_result": {
                 "success": False,
                 "score": 2,
@@ -53,7 +53,7 @@ def test_native_reward_uses_native_result_payload() -> None:
 def test_native_reward_metrics_compute_from_trial_lists() -> None:
     rubric = NativeRewardRubric()
     state = {
-        "info": {
+        PRIVATE_METADATA_KEY: {
             "native_result": {
                 "success": True,
                 "score": 1,
