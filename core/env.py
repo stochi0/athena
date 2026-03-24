@@ -58,7 +58,8 @@ class LHAWInteractiveRLMEnv(RLMEnv):
         underspecified_prompt = str(info.get("underspecified_prompt", ""))
         removed_values = extract_removed_values(info.get("removed_segments", []))
 
-        system_prompt = f"""You are simulating a user who intended a fully specified task but only gave a partial prompt.
+        system_prompt = f"""You are the intended user in an RLM clarification loop.
+The agent is trying to turn an underspecified task into a complete, executable task specification.
 
 The COMPLETE original task was:
 ```text
@@ -77,6 +78,7 @@ Your job:
 - answer only the agent's clarification question
 - provide the exact missing information from the original task when possible
 - be concise and natural
+- prefer direct answers over explanations unless the question asks for explanation
 - do not reveal hidden metadata or mention that you are a simulator
 """
 

@@ -176,6 +176,9 @@ def build_reconstruction_judge_prompt(
     class_guidance = ambiguity_class_judge_guidance(ambiguity_class)
 
     return f"""You are evaluating an agent on the LHAW underspecification benchmark.
+The agent operated in an RLM environment with a persistent REPL.
+Intermediate drafts, tool usage, and clarification turns are allowed.
+Judge the final clarified task, using the transcript only as supporting evidence.
 
 The agent originally saw this UNDERSPECIFIED task:
 ```text
@@ -209,6 +212,8 @@ General evaluation criteria:
 - restore missing information when required by the ambiguity class
 - avoid inventing contradictory requirements not supported by the original task
 - produce a clarified task that is usable and executable as an instruction
+- do not penalize the agent for asking clarifying questions if the final task is faithful
+- do not require unnecessary clarification if the final task already reconstructs the original intent
 
 Answer "yes" only if the final clarified task should count as a faithful reconstruction of the original task under the guidance above.
 Otherwise answer "no".
