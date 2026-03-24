@@ -2,13 +2,12 @@
 #
 # Root model runs the RLM REPL; `judge_model` / `user_simulator_model` use the same
 # inference stack as the eval client unless you pass `client_config` / role overrides
-# from Python (see `EnvironmentConfig` in `lhaw_rlm.core.config`).
+# from Python (see `EnvironmentConfig` in `core.config`).
 #
-# Run from inside this package directory (same idea as LOCA smoke evals):
-#   cd lhaw_rlm
-#   prime eval run configs/eval.toml
+# Run from the `lhaw` repo root with the project env on PATH / PYTHONPATH:
+#   uv run prime eval run configs/eval.toml
 #
-# Requires `lhaw_rlm` importable (e.g. `uv sync` from the `lhaw` repo root).
+# Requires `lhaw_rlm` importable (repo root must be on sys.path; `uv run` does this).
 
 model = "z-ai/glm-5"
 api_base_url = "https://api.pinference.ai/api/v1"
@@ -17,7 +16,8 @@ num_examples = 1
 rollouts_per_example = 1
 max_concurrent = 1
 save_results = true
-debug = true
+# false: TUI tails `<run_dir>/eval.log`. true: no eval.log for TUI; use `prime eval run ... --debug` for console logs.
+debug = false
 
 [[eval]]
 env_id = "lhaw_rlm"

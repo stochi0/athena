@@ -5,7 +5,6 @@ from typing import Literal
 
 import verifiers as vf
 
-
 SourceDataset = Literal["all", "MCP-Atlas", "TheAgentCompany", "SWE-Bench Pro"]
 AmbiguityClass = Literal["all", "outcome-critical", "divergent", "benign"]
 InformationDimension = Literal["all", "goal", "constraint", "input", "context"]
@@ -32,7 +31,7 @@ class EnvironmentConfig:
     shuffle: bool = False
     seed: int | None = None
     include_env_tips: bool = False
-    judge_model: str = "z-ai/glm-4.7"
+    judge_model: str = "openai/gpt-4.1-mini"
     user_simulator_model: str = "openai/gpt-4.1-mini"
     client_config: vf.ClientConfig | None = None
     judge_client_config: vf.ClientConfig | None = None

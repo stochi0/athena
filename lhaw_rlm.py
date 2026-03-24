@@ -20,14 +20,13 @@ LLM judge.
 
 from __future__ import annotations
 
-from .core.config import (
+import verifiers as vf
+from core.config import (
     EnvironmentConfig,
 )
-from .core.dataset import load_rollout_dataset
-from .core.env import LHAWRLMEnv
-from .core.judging import LHAWJudgeRubric
-
-import verifiers as vf
+from core.dataset import load_rollout_dataset
+from core.env import LHAWRLMEnv
+from core.judging import LHAWJudgeRubric
 from verifiers.utils.client_utils import resolve_client_config, setup_openai_client
 
 
