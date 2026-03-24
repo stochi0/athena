@@ -1,6 +1,6 @@
 # Run from repo root: uv run prime eval run configs/eval.toml (set PRIME_API_KEY).
 
-model = "z-ai/glm-5"
+model = "z-ai/glm-4.7"
 api_base_url = "https://api.pinference.ai/api/v1"
 api_key_var = "PRIME_API_KEY"
 
@@ -25,7 +25,8 @@ max_examples = 1
 shuffle = false
 include_env_tips = false
 
-judge_model = "z-ai/glm-4.7"
+reward_mode = "reconstruction_judge"
+judge_model = "openai/gpt-4.1-mini"
 user_simulator_model = "openai/gpt-4.1-mini"
 sub_model = "openai/gpt-4.1-nano"
 repl_language = "python"

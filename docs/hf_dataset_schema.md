@@ -25,3 +25,15 @@ Reference for columns produced by the upstream [ScaleAI/lhaw](https://huggingfac
 - `**removed_segments**`: Oracle content the simulated user can answer from.
 - `**information_dimension**`: Filter or analyze along goal / constraint / input / context style axes.
 
+## Optional extensions for `native_reward`
+
+The released HF dataset does not include native benchmark rewards. If you are extending the schema for native benchmark reward training, the root environment will also consume these optional fields when present:
+
+| Column | Type | Description |
+| ------ | ---- | ----------- |
+| `native_result` | struct | Native per-trajectory result with fields like `success`, `score`, and `total`. |
+| `native_result_path` | `VARCHAR` | Path to a JSON file containing the native result payload. |
+| `native_trials` | struct array | Trial-level outcomes for computing `pass@3`, `Ckpt%`, `Ask%`, and `Avg/Traj`. |
+| `native_baseline_trials` | struct array | Baseline trial outcomes without `ask_user`, used for `Gain/Q`. |
+| `native_summary` | struct | Precomputed aggregate metrics such as `pass_at_3`, `checkpoint_percent`, `ask_percent`, `avg_questions_per_trajectory`, and `gain_per_question`. |
+

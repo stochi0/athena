@@ -10,6 +10,7 @@ AmbiguityClass = Literal["all", "outcome-critical", "divergent", "benign"]
 InformationDimension = Literal["all", "goal", "constraint", "input", "context"]
 SingleInformationDimension = Literal["goal", "constraint", "input", "context"]
 ReplLanguage = Literal["bash", "python"]
+RewardMode = Literal["reconstruction_judge", "native_reward"]
 
 
 def as_list(value: str | list[str] | None) -> list[str]:
@@ -31,6 +32,7 @@ class EnvironmentConfig:
     shuffle: bool = False
     seed: int | None = None
     include_env_tips: bool = False
+    reward_mode: RewardMode = "reconstruction_judge"
     judge_model: str = "openai/gpt-4.1-mini"
     user_simulator_model: str = "openai/gpt-4.1-mini"
     client_config: vf.ClientConfig | None = None

@@ -1,21 +1,26 @@
 """
 LHAW RLM Environment.
 
-This environment implements the closest paper-aligned interaction loop that is
-practical with the released `ScaleAI/lhaw` dataset and the `verifiers` RLM
-runtime:
+This environment supports two reward modes over the released `ScaleAI/lhaw`
+dataset and the `verifiers` RLM runtime:
 
-- the model sees an underspecified prompt
-- it can ask a simulated user for clarification via an `ask_user(...)` tool
-- it must produce a fully specified, clarified task as its final answer
-- an LLM judge compares that clarified task against the original prompt
+- reconstruction_judge:
+  - the model sees an underspecified prompt
+  - it can ask a simulated user for clarification via an `ask_user(...)` tool
+  - it must produce a fully specified, clarified task as its final answer
+  - an LLM judge compares that clarified task against the original prompt
+
+- native_reward:
+  - the model still sees an underspecified prompt and can use `ask_user(...)`
+  - reward comes from benchmark-native results supplied in the example metadata
+  - the environment reports paper-style native metrics when those signals are present
 
 Unlike the full paper setup, this environment does not execute the underlying
 benchmark tasks (e.g. TAC / SWE-Bench / MCP-Atlas native harnesses) and
 therefore cannot reproduce benchmark-native pass@3 or checkpoint metrics inside
-one standalone `verifiers` environment. Instead, it faithfully models the
-clarification interaction itself and scores the reconstructed task spec with an
-LLM judge.
+one standalone `verifiers` environment from the released Hugging Face schema
+alone. The native-reward mode therefore expects native downstream outputs or
+trajectory-linked metadata to be provided alongside each example.
 """
 
 from __future__ import annotations
@@ -27,6 +32,7 @@ from core.config import (
 from core.dataset import load_rollout_dataset
 from core.env import LHAWRLMEnv
 from core.judging import LHAWJudgeRubric
+from core.native_reward import NativeRewardRubric
 from verifiers.utils.client_utils import resolve_client_config, setup_openai_client
 
 
@@ -49,15 +55,24 @@ def load_environment(
     }
     dataset = load_rollout_dataset(resolved_config)
 
-    judge_client_config = resolved_config.client_config or vf.ClientConfig()
-    if resolved_config.judge_client_config is not None:
-        judge_client_config = vf.ClientConfig.model_validate(
-            {
-                **judge_client_config.model_dump(mode="python"),
-                **resolved_config.judge_client_config.model_dump(mode="python"),
-            }
+    rubric: vf.Rubric
+    if resolved_config.reward_mode == "native_reward":
+        rubric = NativeRewardRubric()
+    else:
+        judge_client_config = resolved_config.client_config or vf.ClientConfig()
+        if resolved_config.judge_client_config is not None:
+            judge_client_config = vf.ClientConfig.model_validate(
+                {
+                    **judge_client_config.model_dump(mode="python"),
+                    **resolved_config.judge_client_config.model_dump(mode="python"),
+                }
+            )
+        judge_client = setup_openai_client(resolve_client_config(judge_client_config))
+
+        rubric = LHAWJudgeRubric(
+            judge_client=judge_client,
+            judge_model=resolved_config.judge_model,
         )
-    judge_client = setup_openai_client(resolve_client_config(judge_client_config))
 
     user_simulator_client_config = resolved_config.client_config or vf.ClientConfig()
     if resolved_config.user_simulator_client_config is not None:
@@ -71,11 +86,6 @@ def load_environment(
         resolve_client_config(user_simulator_client_config)
     )
 
-    rubric = LHAWJudgeRubric(
-        judge_client=judge_client,
-        judge_model=resolved_config.judge_model,
-    )
-
     sandbox_labels = _normalize_sandbox_labels(
         env_kwargs.pop("sandbox_labels", ["lhaw-rlm"])
     )
@@ -85,6 +95,7 @@ def load_environment(
         rubric=rubric,
         user_simulator_client=user_simulator_client,
         user_simulator_model=resolved_config.user_simulator_model,
+        reward_mode=resolved_config.reward_mode,
         repl_language=resolved_config.repl_language,
         max_turns=resolved_config.max_turns,
         sub_llm_max_turns=resolved_config.sub_llm_max_turns,

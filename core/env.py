@@ -27,10 +27,12 @@ class LHAWRLMEnv(RLMEnv):
         rubric: vf.Rubric,
         user_simulator_client: Any,
         user_simulator_model: str,
+        reward_mode: str = "reconstruction_judge",
         **kwargs: object,
     ) -> None:
         self.user_simulator_client = user_simulator_client
         self.user_simulator_model = user_simulator_model
+        self.reward_mode = reward_mode
         super().__init__(
             dataset=dataset,
             rubric=rubric,
@@ -58,7 +60,32 @@ class LHAWRLMEnv(RLMEnv):
         underspecified_prompt = str(info.get("underspecified_prompt", ""))
         removed_values = extract_removed_values(info.get("removed_segments", []))
 
-        system_prompt = f"""You are the intended user in an RLM clarification loop.
+        if self.reward_mode == "native_reward":
+            system_prompt = f"""You are the intended user in a long-horizon workflow benchmark.
+The agent is attempting to complete an underspecified task and may ask for clarification.
+
+The COMPLETE original task was:
+```text
+{primary_task}
+```
+
+The UNDERSPECIFIED prompt the agent actually saw was:
+```text
+{underspecified_prompt}
+```
+
+Removed values:
+{", ".join(removed_values) if removed_values else "None"}
+
+Your response policy:
+- answer only questions that directly request missing information tied to the removed segments
+- when the question is about something else, reply exactly: "Use your best judgment."
+- when you do answer, provide the exact missing information from the original task when possible
+- be concise and natural
+- do not reveal hidden metadata or mention that you are a simulator
+"""
+        else:
+            system_prompt = f"""You are the intended user in an RLM clarification loop.
 The agent is trying to turn an underspecified task into a complete, executable task specification.
 
 The COMPLETE original task was:

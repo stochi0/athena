@@ -1,6 +1,9 @@
 # LHAW RLM (`lhaw_rlm`)
 
-Verifiers environment for the **LHAW** clarification loop: models see underspecified prompts from the [ScaleAI/lhaw](https://huggingface.co/datasets/ScaleAI/lhaw) dataset, may call `ask_user` against a simulated user, and are scored with an LLM judge on the clarified task.
+Verifiers environment for the **LHAW** clarification loop with two explicit reward modes:
+
+- `reconstruction_judge`: models see underspecified prompts from the [ScaleAI/lhaw](https://huggingface.co/datasets/ScaleAI/lhaw) dataset, may call `ask_user`, and are scored by an LLM judge on the clarified task.
+- `native_reward`: models still interact through `ask_user`, but reward is read from benchmark-native downstream results supplied in the example metadata or linked result files.
 
 ## Layout
 
@@ -31,6 +34,13 @@ uv run prime eval run configs/eval.toml
 ```
 
 Set the API key named in `configs/eval.toml` (e.g. `PRIME_API_KEY`). Optionally add `configs/endpoints.toml` for shared endpoint registry.
+
+### Reward Modes
+
+Set `reward_mode` under `[eval.env_args]`:
+
+- `reward_mode = "reconstruction_judge"` keeps the original clarification-only task contract and judge-based reward.
+- `reward_mode = "native_reward"` switches prompts toward solving the task and expects `native_result` or `native_result_path` in each example's metadata. Optional aggregate fields like `native_trials`, `native_baseline_trials`, and `native_summary` enable paper-style offline metrics such as `pass@3`, `Ask%`, `Avg/Traj`, and `Gain/Q`.
 
 **Logs:** With the default Rich TUI, worker logs are tailed from `<run_dir>/eval.log`, which verifiers only writes when `debug = false` in the eval TOML. For plain tqdm + console logging (no TUI), run `prime eval run configs/eval.toml --debug`.
 

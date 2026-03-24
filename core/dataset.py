@@ -9,11 +9,12 @@ from datasets import Dataset, load_dataset
 from .config import EnvironmentConfig
 from .constants import (
     AMBIGUITY_CLASSES,
-    ENV_TIPS,
     HF_DATASET_NAME,
     INFORMATION_DIMENSIONS,
+    REWARD_MODES,
     SOURCE_DATASETS,
-    TASK_PROMPT_PREFIX,
+    get_env_tips,
+    get_task_prompt_prefix,
 )
 
 
@@ -35,18 +36,24 @@ def validate_config(config: EnvironmentConfig) -> None:
             f"information_dimension contains invalid values {invalid_dimensions}. "
             f"Valid values: {sorted(INFORMATION_DIMENSIONS)}."
         )
+    if config.reward_mode not in REWARD_MODES:
+        raise ValueError(
+            f"reward_mode={config.reward_mode!r} is invalid. "
+            f"Must be one of {sorted(REWARD_MODES)}."
+        )
 
     if config.max_examples is not None and config.max_examples < 0:
         raise ValueError(f"max_examples must be >= 0; got {config.max_examples}.")
 
 
-def build_prompt_content(underspecified_prompt: str, include_env_tips: bool) -> str:
-    prompt_content = (
-        TASK_PROMPT_PREFIX
-        + f"<underspecified_task>\n{underspecified_prompt}\n</underspecified_task>"
+def build_prompt_content(
+    underspecified_prompt: str, include_env_tips: bool, reward_mode: str
+) -> str:
+    prompt_content = get_task_prompt_prefix(reward_mode) + (
+        f"<underspecified_task>\n{underspecified_prompt}\n</underspecified_task>"
     )
     if include_env_tips:
-        prompt_content += ENV_TIPS
+        prompt_content += get_env_tips(reward_mode)
     return prompt_content
 
 
@@ -55,6 +62,7 @@ def transform_example(
     idx: int,
     *,
     include_env_tips: bool,
+    reward_mode: str,
 ) -> vf.RolloutInput:
     removed_segments = example.get("removed_segments", []) or []
     underspecified_prompt = str(example.get("underspecified_prompt", ""))
@@ -64,7 +72,9 @@ def transform_example(
         "prompt": [
             {
                 "role": "user",
-                "content": build_prompt_content(underspecified_prompt, include_env_tips),
+                "content": build_prompt_content(
+                    underspecified_prompt, include_env_tips, reward_mode
+                ),
             }
         ],
         "task": "lhaw-rlm-clarification",
@@ -79,6 +89,12 @@ def transform_example(
             "expected_questions": example.get("expected_questions", []) or [],
             "original_prompt": example.get("original_prompt", ""),
             "underspecified_prompt": underspecified_prompt,
+            "terminal_states": example.get("terminal_states", ""),
+            "native_result": example.get("native_result"),
+            "native_result_path": example.get("native_result_path", ""),
+            "native_trials": example.get("native_trials", []) or [],
+            "native_baseline_trials": example.get("native_baseline_trials", []) or [],
+            "native_summary": example.get("native_summary"),
         },
     }
 
@@ -109,6 +125,7 @@ def load_rollout_dataset(config: EnvironmentConfig) -> Dataset:
             cast(vf.Info, example),
             idx,
             include_env_tips=config.include_env_tips,
+            reward_mode=config.reward_mode,
         ),
         with_indices=True,
         remove_columns=raw_dataset.column_names,
