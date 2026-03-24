@@ -113,6 +113,11 @@ class LOCABenchRLMEnv(RLMEnv):
         task_instruction, reset_info = self._get_task_instruction(env, env_params)
 
         copy_selected_entries(task_dir, context_dir, self.config.visible_paths)
+        available_visible_paths = [
+            path for path in self.config.visible_paths if (context_dir / path).exists()
+        ]
+        if not available_visible_paths:
+            available_visible_paths = list(self.config.visible_paths)
 
         state["_loca_env"] = env
         state["_loca_task_dir_obj"] = task_dir_obj
@@ -121,7 +126,7 @@ class LOCABenchRLMEnv(RLMEnv):
         state["loca_task_name"] = task_name
         state["loca_env_class"] = env_class_path
         state["loca_env_params"] = env_params
-        state["loca_visible_paths"] = list(self.config.visible_paths)
+        state["loca_visible_paths"] = list(available_visible_paths)
 
         info["context_dir"] = str(context_dir)
         info["loca_reset_info"] = reset_info
@@ -132,7 +137,7 @@ class LOCABenchRLMEnv(RLMEnv):
                 "content": build_prompt(
                     task_name=task_name,
                     task_instruction=task_instruction.strip(),
-                    visible_paths=self.config.visible_paths,
+                    visible_paths=available_visible_paths,
                     repl_language=self.repl_language,
                 ),
             }
