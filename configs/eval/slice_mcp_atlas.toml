@@ -1,13 +1,13 @@
-# Quick smoke (1 example). More presets: configs/eval/*.toml (standard, heavy, model tiers, slices).
-# Run from repo root: uv run prime eval run configs/eval.toml (set PRIME_API_KEY).
+# MCP-Atlas rows only.
+# uv run prime eval run configs/eval/slice_mcp_atlas.toml
 
 model = "z-ai/glm-4.7"
 api_base_url = "https://api.pinference.ai/api/v1"
 api_key_var = "PRIME_API_KEY"
 
-num_examples = 1
+num_examples = 20
 rollouts_per_example = 1
-max_concurrent = 1
+max_concurrent = 2
 
 save_results = true
 debug = false
@@ -19,11 +19,12 @@ state_columns = ["final_answer", "stop_condition", "info"]
 
 [eval.env_args]
 split = "test"
-source_dataset = "all"
+source_dataset = "MCP-Atlas"
 ambiguity_class = "all"
 information_dimension = "all"
-max_examples = 1
-shuffle = false
+max_examples = 20
+shuffle = true
+seed = 13
 include_env_tips = false
 
 reward_mode = "reconstruction_judge"
@@ -47,4 +48,4 @@ sandbox_memory_gb = 2
 sandbox_disk_size_gb = 5
 sandbox_gpu_count = 0
 sandbox_timeout_minutes = 30
-sandbox_labels = ["lhaw-rlm"]
+sandbox_labels = ["lhaw-rlm", "slice-mcp"]
