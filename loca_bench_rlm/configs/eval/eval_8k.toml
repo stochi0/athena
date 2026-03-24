@@ -7,7 +7,7 @@
 #   unset PRIME_API_KEY  # if your repo-level .env contains an inference-only key
 #   prime eval run eval_8k.toml
 
-model = "openai/gpt-4.1-nano"
+model = "z-ai/glm-5"
 api_base_url = "https://api.pinference.ai/api/v1"
 api_key_var = "PRIME_API_KEY"
 num_examples = 1
