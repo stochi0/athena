@@ -11,6 +11,7 @@ generation and grading while exposing a clean `verifiers` RLM interface.
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
@@ -81,7 +82,7 @@ class LOCABenchRLMEnv(RLMEnv):
             env_id=ENV_ID,
         )
 
-    def _get_task_instruction(
+    async def _get_task_instruction(
         self,
         env: Any,
         env_params: dict[str, Any],
@@ -90,7 +91,10 @@ class LOCABenchRLMEnv(RLMEnv):
             return str(env._get_instructions()), {}
         if hasattr(env, "first_obs"):
             return str(env.first_obs), {}
-        prompt, reset_info = env.reset(seed=env_params.get("seed"))
+        prompt, reset_info = await asyncio.to_thread(
+            env.reset,
+            seed=env_params.get("seed"),
+        )
         return str(prompt), dict(reset_info)
 
     async def setup_state(self, state: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
@@ -109,8 +113,10 @@ class LOCABenchRLMEnv(RLMEnv):
         context_dir = Path(context_dir_obj.name)
 
         env_params = resolve_placeholders(env_params, task_dir=task_dir)
-        env = env_class(task_dir=str(task_dir), **env_params)
-        task_instruction, reset_info = self._get_task_instruction(env, env_params)
+        # Some upstream LOCA tasks call `asyncio.run()` during setup, so build
+        # them off the active event loop to avoid nested-loop failures.
+        env = await asyncio.to_thread(env_class, task_dir=str(task_dir), **env_params)
+        task_instruction, reset_info = await self._get_task_instruction(env, env_params)
 
         copy_selected_entries(task_dir, context_dir, self.config.visible_paths)
         available_visible_paths = [
