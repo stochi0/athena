@@ -1,0 +1,27 @@
+# Model → Prime Inference (OpenAI-compatible). Used by verifiers when resolving
+# `model` / env judge & sub-LLM IDs. Copy is included in `prime env push` layouts
+# that ship `configs/` so hosted workers find ./configs/endpoints.toml.
+
+[[endpoint]]
+endpoint_id = "z-ai/glm-4.7"
+model = "z-ai/glm-4.7"
+api_base_url = "https://api.pinference.ai/api/v1"
+api_key_var = "PRIME_API_KEY"
+
+[[endpoint]]
+endpoint_id = "openai/gpt-4.1"
+model = "openai/gpt-4.1"
+api_base_url = "https://api.pinference.ai/api/v1"
+api_key_var = "PRIME_API_KEY"
+
+[[endpoint]]
+endpoint_id = "openai/gpt-4.1-mini"
+model = "openai/gpt-4.1-mini"
+api_base_url = "https://api.pinference.ai/api/v1"
+api_key_var = "PRIME_API_KEY"
+
+[[endpoint]]
+endpoint_id = "openai/gpt-4.1-nano"
+model = "openai/gpt-4.1-nano"
+api_base_url = "https://api.pinference.ai/api/v1"
+api_key_var = "PRIME_API_KEY"

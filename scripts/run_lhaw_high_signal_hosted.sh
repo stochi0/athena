@@ -10,13 +10,14 @@
 #   3. Authenticate: `prime config set-api-key "$PRIME_API_KEY"`
 #
 # Optional env:
+#   HF_TOKEN                — forwarded to hosted workers via --custom-secrets (local .env alone is not enough)
 #   LHAW_EVAL_SUBSET=all|ambiguity|domains|dimensions
 #   LHAW_PUSH_ENV=1           — run `prime env push` before evals (latest wheel on Hub)
 #   LHAW_HOSTED_TIMEOUT_MINUTES   (default 180)
 #   LHAW_HOSTED_POLL_INTERVAL     (default 30)
 #
 # Usage:
-#   export PRIME_API_KEY=... PRIME_EVAL_ENV_ID=your-org/lhaw_rlm
+#   Put PRIME_API_KEY (and optionally PRIME_EVAL_ENV_ID) in repo .env, or export them.
 #   ./scripts/run_lhaw_high_signal_hosted.sh
 
 set -euo pipefail
@@ -24,20 +25,43 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+if [[ -f "$ROOT/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$ROOT/.env"
+  set +a
+fi
+
 if ! command -v prime >/dev/null 2>&1; then
   echo "error: prime CLI not found. Install with: uv tool install prime" >&2
   exit 1
 fi
 
 PRIME_EVAL_ENV_ID="${PRIME_EVAL_ENV_ID:-}"
+if [[ -z "$PRIME_EVAL_ENV_ID" && -f "$ROOT/.prime/.env-metadata.json" ]]; then
+  PRIME_EVAL_ENV_ID="$(
+    PRIME_METADATA_JSON="$ROOT/.prime/.env-metadata.json" python3 -c \
+      'import json, os; d = json.load(open(os.environ["PRIME_METADATA_JSON"])); print(d["owner"] + "/" + d["name"])' 2>/dev/null || true
+  )"
+fi
 if [[ -z "$PRIME_EVAL_ENV_ID" ]]; then
   echo "error: set PRIME_EVAL_ENV_ID to your Environments Hub slug (e.g. primeintellect/lhaw_rlm)" >&2
+  echo "       add it to .env, export it, or run \`prime env push\` from this repo (writes .prime/.env-metadata.json)" >&2
   exit 1
 fi
 
 SUBSET="${LHAW_EVAL_SUBSET:-all}"
 TIMEOUT_MINUTES="${LHAW_HOSTED_TIMEOUT_MINUTES:-180}"
 POLL_INTERVAL="${LHAW_HOSTED_POLL_INTERVAL:-30}"
+
+# Hosted workers do not see this machine's .env; pass HF hub token when set.
+HOSTED_SECRET_ARGS=()
+if [[ -n "${HF_TOKEN:-}" ]]; then
+  _hosted_secrets_json="$(
+    HF_TOKEN="$HF_TOKEN" python3 -c 'import json, os; print(json.dumps({"HF_TOKEN": os.environ["HF_TOKEN"]}))'
+  )"
+  HOSTED_SECRET_ARGS=(--custom-secrets "$_hosted_secrets_json")
+fi
 
 declare -a CONFIGS
 case "$SUBSET" in
@@ -118,13 +142,15 @@ for cfg in "${CONFIGS[@]}"; do
   name="lhaw-$(basename "$cfg" .toml)"
   echo "==> hosted eval: $cfg (name: $name)"
   prime eval run "$prepared" \
+    --env-path "$ROOT" \
     --hosted \
     --follow \
     --poll-interval "$POLL_INTERVAL" \
     --timeout-minutes "$TIMEOUT_MINUTES" \
     --allow-sandbox-access \
     --allow-instances-access \
-    --eval-name "$name"
+    --eval-name "$name" \
+    "${HOSTED_SECRET_ARGS[@]}"
 done
 
 echo "==> Recent evaluations (hosted runs are already on Prime Evals)"
