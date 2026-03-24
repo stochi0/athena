@@ -16,6 +16,10 @@
 #   LHAW_HOSTED_TIMEOUT_MINUTES   (default 180)
 #   LHAW_HOSTED_POLL_INTERVAL     (default 30)
 #
+# Required for hosted:
+#   PRIME_API_KEY           — same key as `prime config set-api-key`; forwarded via --custom-secrets because
+#                             remote workers do not see this machine's env or CLI config (tunnel auth).
+#
 # Usage:
 #   Put PRIME_API_KEY (and optionally PRIME_EVAL_ENV_ID) in repo .env, or export them.
 #   ./scripts/run_lhaw_high_signal_hosted.sh
@@ -37,6 +41,13 @@ if ! command -v prime >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ -z "${PRIME_API_KEY:-}" ]]; then
+  echo "error: PRIME_API_KEY is required for hosted evaluation." >&2
+  echo "       Remote workers authenticate the Prime tunnel with this variable; only your shell can read .env — workers get it via --custom-secrets." >&2
+  echo "       Export PRIME_API_KEY or add it to .env (same value as: prime config set-api-key \"\$PRIME_API_KEY\")." >&2
+  exit 1
+fi
+
 PRIME_EVAL_ENV_ID="${PRIME_EVAL_ENV_ID:-}"
 if [[ -z "$PRIME_EVAL_ENV_ID" && -f "$ROOT/.prime/.env-metadata.json" ]]; then
   PRIME_EVAL_ENV_ID="$(
@@ -54,14 +65,19 @@ SUBSET="${LHAW_EVAL_SUBSET:-all}"
 TIMEOUT_MINUTES="${LHAW_HOSTED_TIMEOUT_MINUTES:-180}"
 POLL_INTERVAL="${LHAW_HOSTED_POLL_INTERVAL:-30}"
 
-# Hosted workers do not see this machine's .env; pass HF hub token when set.
-HOSTED_SECRET_ARGS=()
-if [[ -n "${HF_TOKEN:-}" ]]; then
-  _hosted_secrets_json="$(
-    HF_TOKEN="$HF_TOKEN" python3 -c 'import json, os; print(json.dumps({"HF_TOKEN": os.environ["HF_TOKEN"]}))'
-  )"
-  HOSTED_SECRET_ARGS=(--custom-secrets "$_hosted_secrets_json")
-fi
+# Hosted workers do not see this machine's .env or prime CLI config; inject secrets they need.
+_hosted_secrets_json="$(
+  python3 -c '
+import json, os
+secrets = {}
+if os.environ.get("PRIME_API_KEY"):
+    secrets["PRIME_API_KEY"] = os.environ["PRIME_API_KEY"]
+if os.environ.get("HF_TOKEN"):
+    secrets["HF_TOKEN"] = os.environ["HF_TOKEN"]
+print(json.dumps(secrets))
+'
+)"
+HOSTED_SECRET_ARGS=(--custom-secrets "$_hosted_secrets_json")
 
 declare -a CONFIGS
 case "$SUBSET" in

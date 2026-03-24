@@ -8,7 +8,7 @@ api_key_var = "PRIME_API_KEY"
 
 num_examples = 16
 rollouts_per_example = 1
-max_concurrent = 3
+max_concurrent = 8
 
 save_results = true
 debug = false

@@ -41,6 +41,8 @@ Set the API key named in `configs/eval.toml` (e.g. `PRIME_API_KEY`). Optionally 
 
 Hosted runs execute on Prime infrastructure and appear in **Prime Evals** automatically (no separate `prime eval push` for that flow). You need a **published** environment (`prime env push`) and your Hub slug (e.g. `primeintellect/lhaw_rlm`).
 
+**Tunnel auth:** `prime config set-api-key` only configures this machine. Remote eval workers still need `PRIME_API_KEY` in their environment for Prime tunnel authentication; otherwise you may see `TunnelAuthError`. The script below exports `PRIME_API_KEY` and passes it (and optional `HF_TOKEN`) via `prime eval run --custom-secrets`. If you run `prime eval run ... --hosted` yourself, pass the same JSON, e.g. `--custom-secrets "$(python3 -c 'import json,os; print(json.dumps({"PRIME_API_KEY": os.environ["PRIME_API_KEY"]}))')"` with `PRIME_API_KEY` set in the shell.
+
 ```bash
 export PRIME_API_KEY=... PRIME_EVAL_ENV_ID=your-org/lhaw_rlm
 prime config set-api-key "$PRIME_API_KEY"
