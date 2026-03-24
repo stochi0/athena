@@ -1,9 +1,9 @@
 from .config import EnvironmentConfig
-from .env import LHAWInteractiveRLMEnv
+from .env import LHAWRLMEnv
 from .judging import LHAWJudgeRubric
 
 __all__ = [
-    "LHAWInteractiveRLMEnv",
+    "LHAWRLMEnv",
     "LHAWJudgeRubric",
     "EnvironmentConfig",
 ]

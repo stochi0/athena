@@ -18,8 +18,8 @@ def extract_removed_values(removed_segments: object) -> list[str]:
     ]
 
 
-class LHAWInteractiveRLMEnv(RLMEnv):
-    """Interactive LHAW environment with an ask_user root tool."""
+class LHAWRLMEnv(RLMEnv):
+    """LHAW environment with an ask_user root tool."""
 
     def __init__(
         self,

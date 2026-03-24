@@ -222,7 +222,7 @@ Respond with only "yes" or "no"."""
 
 
 class LHAWJudgeRubric(vf.JudgeRubric):
-    """Judge-based rubric for the interactive LHAW clarification task."""
+    """Judge-based rubric for the LHAW clarification task."""
 
     def __init__(
         self,

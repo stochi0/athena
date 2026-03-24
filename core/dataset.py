@@ -67,7 +67,7 @@ def transform_example(
                 "content": build_prompt_content(underspecified_prompt, include_env_tips),
             }
         ],
-        "task": "lhaw-interactive-clarification",
+        "task": "lhaw-rlm-clarification",
         "answer": example.get("original_prompt", ""),
         "info": {
             "variant_id": example.get("variant_id", ""),

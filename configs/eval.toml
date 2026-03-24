@@ -1,4 +1,4 @@
-# Smoke eval for the LHAW interactive RLM environment (ScaleAI/lhaw + ask_user + judge).
+# Smoke eval for the LHAW RLM environment (ScaleAI/lhaw + ask_user + judge).
 #
 # Root model runs the RLM REPL; `judge_model` / `user_simulator_model` use the same
 # inference stack as the eval client unless you pass `client_config` / role overrides

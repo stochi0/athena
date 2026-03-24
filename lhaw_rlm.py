@@ -1,5 +1,5 @@
 """
-LHAW Interactive RLM Environment.
+LHAW RLM Environment.
 
 This environment implements the closest paper-aligned interaction loop that is
 practical with the released `ScaleAI/lhaw` dataset and the `verifiers` RLM
@@ -24,7 +24,7 @@ from .core.config import (
     EnvironmentConfig,
 )
 from .core.dataset import load_rollout_dataset
-from .core.env import LHAWInteractiveRLMEnv
+from .core.env import LHAWRLMEnv
 from .core.judging import LHAWJudgeRubric
 
 import verifiers as vf
@@ -41,7 +41,7 @@ def load_environment(
     config: EnvironmentConfig | dict[str, object] | None = None,
     **kwargs: object,
 ) -> vf.Environment:
-    """Load the interactive LHAW RLM environment."""
+    """Load the LHAW RLM environment."""
 
     config_field_names = set(EnvironmentConfig.__dataclass_fields__)
     resolved_config = EnvironmentConfig.from_input(config, **kwargs)
@@ -81,7 +81,7 @@ def load_environment(
         env_kwargs.pop("sandbox_labels", ["lhaw-rlm"])
     )
 
-    return LHAWInteractiveRLMEnv(
+    return LHAWRLMEnv(
         dataset=dataset,
         rubric=rubric,
         user_simulator_client=user_simulator_client,
