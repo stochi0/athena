@@ -163,6 +163,91 @@ def _format_ask_user_transcript(interactions: list[dict[str, str]]) -> str:
     return "\n".join(lines)
 
 
+def _ambiguity_class_judge_guidance(ambiguity_class: str) -> str:
+    """Return class-specific judge instructions grounded in the paper taxonomy."""
+    if ambiguity_class == "outcome-critical":
+        return (
+            "This is an outcome-critical variant.\n"
+            "- Missing information should be treated as necessary for reliable success.\n"
+            "- The final clarified task should explicitly restore the critical missing details from the original task.\n"
+            "- If the final clarified task still leaves a blocker unresolved, answer 'no'."
+        )
+    if ambiguity_class == "divergent":
+        return (
+            "This is a divergent variant.\n"
+            "- The underspecification can lead to variable but plausible outcomes.\n"
+            "- Answer 'yes' if the final clarified task is a faithful, executable reconstruction aligned with the original task,\n"
+            "  even if the clarification transcript shows one reasonable path among several plausible ones.\n"
+            "- Answer 'no' if the final clarified task drifts to a materially different task or leaves key ambiguity unresolved."
+        )
+    if ambiguity_class == "benign":
+        return (
+            "This is a benign variant.\n"
+            "- The missing information is expected to be inferable from context or low-risk for successful completion.\n"
+            "- Do not require unnecessary explicit clarification if the final clarified task is still faithful to the original task.\n"
+            "- Answer 'no' only if the final clarified task introduces contradictions, loses essential intent, or is not executable."
+        )
+    return (
+        "Use the original task as the reference and decide whether the final clarified task is faithful, executable, "
+        "and does not materially distort the intended task."
+    )
+
+
+def _build_reconstruction_judge_prompt(
+    *,
+    original_prompt: str,
+    underspecified_prompt: str,
+    ambiguity_class: str,
+    removed_segments: list[dict[str, Any]],
+    interactions: list[dict[str, str]],
+    final_answer: str,
+) -> str:
+    """Build the judge prompt for final clarified task reconstruction."""
+    removed_segments_text = _format_removed_segments(removed_segments)
+    interaction_text = _format_ask_user_transcript(interactions)
+    class_guidance = _ambiguity_class_judge_guidance(ambiguity_class)
+
+    return f"""You are evaluating an agent on the LHAW underspecification benchmark.
+
+The agent originally saw this UNDERSPECIFIED task:
+```text
+{underspecified_prompt}
+```
+
+The full ORIGINAL task was:
+```text
+{original_prompt}
+```
+
+Ambiguity class:
+{ambiguity_class}
+
+Removed segments:
+{removed_segments_text}
+
+Clarification transcript:
+{interaction_text}
+
+The agent's FINAL clarified task:
+```text
+{final_answer}
+```
+
+Class-specific guidance:
+{class_guidance}
+
+General evaluation criteria:
+- preserve the original task intent and scope
+- restore missing information when required by the ambiguity class
+- avoid inventing contradictory requirements not supported by the original task
+- produce a clarified task that is usable and executable as an instruction
+
+Answer "yes" only if the final clarified task should count as a faithful reconstruction of the original task under the guidance above.
+Otherwise answer "no".
+
+Respond with only "yes" or "no"."""
+
+
 class LHAWJudgeRubric(vf.Rubric):
     """Judge-based rubric for the interactive LHAW clarification task."""
 
@@ -213,45 +298,18 @@ class LHAWJudgeRubric(vf.Rubric):
         original_prompt = str(info.get("original_prompt", ""))
         underspecified_prompt = str(info.get("underspecified_prompt", ""))
         ambiguity_class = str(info.get("ambiguity_class", ""))
-        removed_segments = info.get("removed_segments", [])
+        removed_segments_raw = info.get("removed_segments", [])
+        removed_segments = removed_segments_raw if isinstance(removed_segments_raw, list) else []
         interactions = _extract_ask_user_interactions(state.get("completion", []))
 
-        judge_prompt = f"""You are evaluating an agent on an underspecified task clarification benchmark.
-
-The agent originally saw this UNDERSPECIFIED task:
-```text
-{underspecified_prompt}
-```
-
-The full ORIGINAL task was:
-```text
-{original_prompt}
-```
-
-Ambiguity class:
-{ambiguity_class}
-
-Removed segments:
-{_format_removed_segments(removed_segments if isinstance(removed_segments, list) else [])}
-
-The agent's clarification transcript:
-{_format_ask_user_transcript(interactions)}
-
-The agent's FINAL clarified task:
-```text
-{final_answer}
-```
-
-Answer "yes" if the final clarified task is a faithful and usable reconstruction
-of the original task:
-- it preserves the original task intent
-- it restores the missing critical information from the original task
-- it does not contradict or materially distort the original task
-- it is sufficiently specified to execute
-
-Answer "no" otherwise.
-
-Respond with only "yes" or "no"."""
+        judge_prompt = _build_reconstruction_judge_prompt(
+            original_prompt=original_prompt,
+            underspecified_prompt=underspecified_prompt,
+            ambiguity_class=ambiguity_class,
+            removed_segments=removed_segments,
+            interactions=interactions,
+            final_answer=final_answer,
+        )
 
         return await self._judge_yes_no(judge_prompt, state)
 
