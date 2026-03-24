@@ -136,8 +136,8 @@ Otherwise answer "no".
 Respond with only "yes" or "no"."""
 
 
-class LHAWJudgeRubric(vf.JudgeRubric):
-    """Judge-based rubric for the LHAW clarification task."""
+class ReconstructionJudgeRubric(vf.JudgeRubric):
+    """Judge-based rubric for the reconstruction task."""
 
     def __init__(
         self,
@@ -197,8 +197,6 @@ class LHAWJudgeRubric(vf.JudgeRubric):
 
         return await self._judge_yes_no(judge_prompt, state)
 
-    async def final_answer_present_metric(
-        self, state: vf.State, **_kwargs: object
-    ) -> float:
+    async def final_answer_present_metric(self, state: vf.State, **_kwargs: object) -> float:
         final_answer = extract_boxed_answer(str(state.get("final_answer", ""))).strip()
         return 1.0 if final_answer else 0.0

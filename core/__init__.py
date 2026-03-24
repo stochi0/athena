@@ -1,11 +1,11 @@
 from .config import EnvironmentConfig, RewardMode
 from .env import LHAWRLMEnv
-from .judging import LHAWJudgeRubric
+from .judging import ReconstructionJudgeRubric
 from .native_reward import NativeRewardRubric
 
 __all__ = [
     "LHAWRLMEnv",
-    "LHAWJudgeRubric",
+    "ReconstructionJudgeRubric",
     "NativeRewardRubric",
     "EnvironmentConfig",
     "RewardMode",

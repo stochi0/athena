@@ -11,7 +11,9 @@ def test_build_prompt_content_changes_with_reward_mode() -> None:
     reconstruction_prompt = build_prompt_content(
         "Do the task.", include_env_tips=True, reward_mode="reconstruction_judge"
     )
-    paper_prompt = build_prompt_content("Do the task.", include_env_tips=True, reward_mode="native_reward")
+    paper_prompt = build_prompt_content(
+        "Do the task.", include_env_tips=True, reward_mode="native_reward"
+    )
 
     assert "reconstruct a fully specified" in reconstruction_prompt
     assert "Do not execute or solve the task itself" in reconstruction_prompt

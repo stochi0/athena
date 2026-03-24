@@ -32,9 +32,9 @@ RECONSTRUCTION_TASK_PROMPT_PREFIX = (
     "Below is an underspecified task.\n"
     "Your job is to reconstruct a fully specified, executable version of that task.\n"
     "If information is genuinely missing, call `ask_user(question, context='')`.\n"
-    "Use the REPL iteratively and maintain your current best draft in `answer[\"content\"]`.\n"
+    'Use the REPL iteratively and maintain your current best draft in `answer["content"]`.\n'
     "Do not execute or solve the task itself; produce the clarified task specification only.\n"
-    "When your draft is complete, set `answer[\"ready\"] = True`.\n\n"
+    'When your draft is complete, set `answer["ready"] = True`.\n\n'
 )
 
 NATIVE_REWARD_TASK_PROMPT_PREFIX = (
@@ -42,9 +42,9 @@ NATIVE_REWARD_TASK_PROMPT_PREFIX = (
     "Below is an underspecified task.\n"
     "Your job is to solve the task itself while strategically deciding when clarification is necessary.\n"
     "If critical information is missing, call `ask_user(question, context='')`.\n"
-    "Use the REPL iteratively and maintain your current best solution or execution summary in `answer[\"content\"]`.\n"
+    'Use the REPL iteratively and maintain your current best solution or execution summary in `answer["content"]`.\n'
     "Avoid unnecessary user interruptions for information you can infer or proceed without.\n"
-    "When you have completed the task as far as possible, set `answer[\"ready\"] = True`.\n\n"
+    'When you have completed the task as far as possible, set `answer["ready"] = True`.\n\n'
 )
 
 

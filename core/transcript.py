@@ -75,9 +75,9 @@ def extract_ask_user_interactions(
                 )
                 pending_by_id[tool_call.id] = len(interactions) - 1
         elif message.role == "tool" and message.tool_call_id in pending_by_id:
-            interactions[pending_by_id[message.tool_call_id]]["response"] = (
-                content_to_text(message.content).strip()
-            )
+            interactions[pending_by_id[message.tool_call_id]]["response"] = content_to_text(
+                message.content
+            ).strip()
 
     return interactions
 

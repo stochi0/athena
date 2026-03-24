@@ -31,7 +31,7 @@ from core.config import (
 )
 from core.dataset import load_rollout_dataset
 from core.env import LHAWRLMEnv
-from core.judging import LHAWJudgeRubric
+from core.judging import ReconstructionJudgeRubric
 from core.native_reward import NativeRewardRubric
 from verifiers.utils.client_utils import resolve_client_config, setup_openai_client
 
@@ -50,9 +50,7 @@ def load_environment(
 
     config_field_names = set(EnvironmentConfig.__dataclass_fields__)
     resolved_config = EnvironmentConfig.from_input(config, **kwargs)
-    env_kwargs = {
-        key: value for key, value in kwargs.items() if key not in config_field_names
-    }
+    env_kwargs = {key: value for key, value in kwargs.items() if key not in config_field_names}
     dataset = load_rollout_dataset(resolved_config)
 
     rubric: vf.Rubric
@@ -69,7 +67,7 @@ def load_environment(
             )
         judge_client = setup_openai_client(resolve_client_config(judge_client_config))
 
-        rubric = LHAWJudgeRubric(
+        rubric = ReconstructionJudgeRubric(
             judge_client=judge_client,
             judge_model=resolved_config.judge_model,
         )
@@ -82,13 +80,9 @@ def load_environment(
                 **resolved_config.user_simulator_client_config.model_dump(mode="python"),
             }
         )
-    user_simulator_client = setup_openai_client(
-        resolve_client_config(user_simulator_client_config)
-    )
+    user_simulator_client = setup_openai_client(resolve_client_config(user_simulator_client_config))
 
-    sandbox_labels = _normalize_sandbox_labels(
-        env_kwargs.pop("sandbox_labels", ["lhaw-rlm"])
-    )
+    sandbox_labels = _normalize_sandbox_labels(env_kwargs.pop("sandbox_labels", ["lhaw-rlm"]))
 
     return LHAWRLMEnv(
         dataset=dataset,

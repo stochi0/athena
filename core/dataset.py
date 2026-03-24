@@ -38,8 +38,7 @@ def validate_config(config: EnvironmentConfig) -> None:
         )
     if config.reward_mode not in REWARD_MODES:
         raise ValueError(
-            f"reward_mode={config.reward_mode!r} is invalid. "
-            f"Must be one of {sorted(REWARD_MODES)}."
+            f"reward_mode={config.reward_mode!r} is invalid. Must be one of {sorted(REWARD_MODES)}."
         )
 
     if config.max_examples is not None and config.max_examples < 0:
@@ -115,9 +114,7 @@ def load_rollout_dataset(config: EnvironmentConfig) -> Dataset:
     if config.requested_dimensions:
         requested_dimension_set = set(config.requested_dimensions)
         raw_dataset = raw_dataset.filter(
-            lambda example: requested_dimension_set.issubset(
-                set(example["information_dimension"])
-            )
+            lambda example: requested_dimension_set.issubset(set(example["information_dimension"]))
         )
 
     dataset = raw_dataset.map(
