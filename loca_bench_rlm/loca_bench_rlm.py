@@ -12,12 +12,14 @@ generation and grading while exposing a clean `verifiers` RLM interface.
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
 import verifiers as vf
 from verifiers.envs.experimental.rlm_env import RLMEnv
+from verifiers.envs.experimental.rlm_env import SandboxRLMExecutor
 
 from core.config import Config
 from core.dataset import build_dataset
@@ -28,6 +30,7 @@ from core.evaluation import (
     loca_pass_reward,
     task_generated_metric,
 )
+from core.mcp import LocaMCPManager
 from core.paths import (
     dynamic_import_class,
     ensure_loca_import_path,
@@ -62,8 +65,10 @@ class LOCABenchRLMEnv(RLMEnv):
         super().__init__(
             dataset=dataset,
             rubric=rubric,
+            root_tools=[self.list_mcp_tools, self.call_mcp_tool],
             max_iterations=config.max_turns,
             repl_language=config.repl_language,
+            execution_backend=config.execution_backend,
             sub_tool_max_turns=config.sub_llm_max_turns,
             sub_model=config.sub_model,
             max_sub_llm_parallelism=config.max_sub_llm_parallelism,
@@ -81,6 +86,43 @@ class LOCABenchRLMEnv(RLMEnv):
             retain_filesystem_after_rollout=config.retain_filesystem_after_rollout,
             env_id=ENV_ID,
         )
+
+    def _get_current_state_for_root_tool(self) -> dict[str, Any]:
+        context = self._root_tool_context_var.get()
+        if not isinstance(context, dict):
+            raise RuntimeError("LOCA MCP root tools are only available inside the REPL.")
+        state = context.get("state")
+        if not isinstance(state, dict):
+            raise RuntimeError("Current rollout state is unavailable.")
+        return state
+
+    async def list_mcp_tools(self) -> str:
+        """List the rollout's available LOCA MCP tools as JSON."""
+        state = self._get_current_state_for_root_tool()
+        manager = state.get("_loca_mcp_manager")
+        if not isinstance(manager, LocaMCPManager) or not manager.has_tools():
+            return "[]"
+        return await manager.list_tools_json()
+
+    async def call_mcp_tool(
+        self,
+        tool_name: str,
+        arguments_json: str = "{}",
+    ) -> str:
+        """Execute one LOCA MCP tool by its exact discovered name."""
+        state = self._get_current_state_for_root_tool()
+        manager = state.get("_loca_mcp_manager")
+        if not isinstance(manager, LocaMCPManager) or not manager.has_tools():
+            raise RuntimeError("This rollout does not provide any LOCA MCP tools.")
+        try:
+            arguments = json.loads(arguments_json) if arguments_json.strip() else {}
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"Invalid arguments_json: {exc}") from exc
+        if not isinstance(arguments, dict):
+            raise RuntimeError(
+                "arguments_json must decode to a JSON object, for example '{\"path\": \"foo\"}'."
+            )
+        return await manager.execute_tool(tool_name, arguments)
 
     async def _get_task_instruction(
         self,
@@ -117,6 +159,11 @@ class LOCABenchRLMEnv(RLMEnv):
         # them off the active event loop to avoid nested-loop failures.
         env = await asyncio.to_thread(env_class, task_dir=str(task_dir), **env_params)
         task_instruction, reset_info = await self._get_task_instruction(env, env_params)
+        mcp_manager = LocaMCPManager(
+            loca_root=self.loca_root,
+            task_dir=task_dir,
+            mcp_servers=task_config.get("mcp_servers"),
+        )
 
         copy_selected_entries(task_dir, context_dir, self.config.visible_paths)
         available_visible_paths = [
@@ -128,14 +175,18 @@ class LOCABenchRLMEnv(RLMEnv):
         state["_loca_env"] = env
         state["_loca_task_dir_obj"] = task_dir_obj
         state["_loca_context_dir_obj"] = context_dir_obj
+        state["_loca_mcp_manager"] = mcp_manager
+        state["_loca_sync_for_evaluation"] = self.sync_filesystem_for_evaluation
         state["loca_task_dir"] = str(task_dir)
         state["loca_task_name"] = task_name
         state["loca_env_class"] = env_class_path
         state["loca_env_params"] = env_params
         state["loca_visible_paths"] = list(available_visible_paths)
+        state["loca_mcp_server_names"] = list(mcp_manager.server_names)
 
         info["context_dir"] = str(context_dir)
         info["loca_reset_info"] = reset_info
+        info["loca_mcp_server_names"] = list(mcp_manager.server_names)
         state["info"] = info
         state["prompt"] = [
             {
@@ -145,11 +196,39 @@ class LOCABenchRLMEnv(RLMEnv):
                     task_instruction=task_instruction.strip(),
                     visible_paths=available_visible_paths,
                     repl_language=self.repl_language,
+                    mcp_server_names=mcp_manager.server_names,
                 ),
             }
         ]
 
         return await super().setup_state(state, **kwargs)
+
+    async def sync_filesystem_for_evaluation(self, state: dict[str, Any]) -> None:
+        if state.get("_loca_eval_synced", False):
+            return
+        if self.execution_backend != "sandbox":
+            state["_loca_eval_synced"] = True
+            return
+        if not isinstance(self._executor, SandboxRLMExecutor):
+            raise RuntimeError(
+                "Sandbox evaluation sync requested, but the active executor is not sandbox-backed."
+            )
+
+        rollout_id = str(state.get("rollout_id", ""))
+        session = self._executor._sessions.get(rollout_id)
+        if session is None or not session.sandbox_id:
+            raise RuntimeError("Missing sandbox session for LOCA evaluation sync.")
+
+        remote_root = session.sandbox_fs_root or state.get("rlm_fs_root_remote")
+        if not remote_root:
+            raise RuntimeError("Missing sandbox filesystem root for LOCA evaluation sync.")
+
+        await self._executor._download_directory(
+            session.sandbox_id,
+            str(remote_root),
+            session.local_fs_root,
+        )
+        state["_loca_eval_synced"] = True
 
 
 def load_environment(

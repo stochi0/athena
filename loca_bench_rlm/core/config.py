@@ -21,6 +21,7 @@ class Config:
     visible_paths: tuple[str, ...] = ("agent_workspace", "files", "local_db")
     max_turns: int = 40
     repl_language: str = "python"
+    execution_backend: str = "local"
     sub_llm_max_turns: int = 5
     sub_model: str | None = None
     max_sub_llm_parallelism: int = 8

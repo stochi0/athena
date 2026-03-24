@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 from typing import Any, Iterable
 
 import verifiers as vf
+from verifiers.utils.async_utils import maybe_await
 
 
 def copy_selected_entries(
@@ -32,7 +33,7 @@ def replace_directory(source_dir: Path, destination_dir: Path) -> None:
     shutil.copytree(source_dir, destination_dir)
 
 
-def evaluate_loca_rollout(state: dict[str, Any]) -> dict[str, Any]:
+async def evaluate_loca_rollout(state: dict[str, Any]) -> dict[str, Any]:
     cached = state.get("_loca_eval_result")
     if isinstance(cached, dict):
         return cached
@@ -59,6 +60,9 @@ def evaluate_loca_rollout(state: dict[str, Any]) -> dict[str, Any]:
     host_agent_workspace = host_task_dir / "agent_workspace"
 
     try:
+        sync_hook = state.get("_loca_sync_for_evaluation")
+        if callable(sync_hook):
+            await maybe_await(sync_hook, state)
         if not sandbox_agent_workspace.exists():
             raise FileNotFoundError(
                 f"Expected sandbox agent workspace at {sandbox_agent_workspace}"
@@ -95,8 +99,8 @@ def evaluate_loca_rollout(state: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def loca_pass_reward(state: dict[str, Any], **_: Any) -> float:
-    return float(evaluate_loca_rollout(state)["reward"])
+async def loca_pass_reward(state: dict[str, Any], **_: Any) -> float:
+    return float((await evaluate_loca_rollout(state))["reward"])
 
 
 def task_generated_metric(state: dict[str, Any], **_: Any) -> float:

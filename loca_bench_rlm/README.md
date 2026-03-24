@@ -19,8 +19,9 @@ For each rollout, the environment:
    - else `LOCA_BENCH_RLM_LOCA_ROOT` if set
    - else a managed cached checkout from GitHub
 3. Copies agent-visible task artifacts into the sandbox (`agent_workspace`, `files`, `local_db`).
-4. Runs the task in `RLMEnv`.
-5. Reuses LOCA's evaluator through `env.step()` for scoring.
+4. Exposes task-scoped LOCA MCP servers to the root REPL via `list_mcp_tools()` and `call_mcp_tool(...)`.
+5. Runs the task in `RLMEnv`.
+6. Reuses LOCA's evaluator through `env.step()` for scoring, with sandbox filesystem sync before evaluation.
 
 ## LOCA Source Resolution
 
@@ -99,8 +100,13 @@ prime eval run configs/eval/eval_debug.toml
 - `loca_root`, `loca_repo_url`, `loca_ref`, `loca_cache_dir`, `loca_sparse_checkout`
 - `task_names`, `max_examples`, `shuffle`, `seed`
 - `visible_paths`
-- RLM controls: `max_turns`, `repl_language`, `sub_model`, `sub_llm_max_turns`
+- RLM controls: `max_turns`, `repl_language`, `execution_backend`, `sub_model`, `sub_llm_max_turns`
 - sandbox controls: `sandbox_memory_gb`, `sandbox_timeout_minutes`, `sandbox_cpu_cores`
+
+Execution backend options:
+
+- `execution_backend = "local"`: default, evaluates directly against the local RLM workspace.
+- `execution_backend = "sandbox"`: downloads the sandbox filesystem back to the host before LOCA scoring so `env.step()` sees the final agent outputs.
 
 Example:
 
