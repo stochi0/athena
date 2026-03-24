@@ -1,4 +1,4 @@
-# Large eval: many examples, multiple rollouts, higher concurrency (costly).
+# Heavy preset: same concurrency as other eval TOMLs; multiple rollouts (costly).
 # Tune num_examples / max_examples down if you hit API limits or a smaller filtered set.
 # uv run prime eval run configs/eval/heavy.toml
 
@@ -6,10 +6,9 @@ model = "z-ai/glm-4.7"
 api_base_url = "https://api.pinference.ai/api/v1"
 api_key_var = "PRIME_API_KEY"
 
-num_examples = 64
+num_examples = 16
 rollouts_per_example = 2
-max_concurrent = 8
-
+max_concurrent = 16
 save_results = true
 debug = false
 
@@ -23,7 +22,7 @@ split = "test"
 source_dataset = "all"
 ambiguity_class = "all"
 information_dimension = "all"
-max_examples = 64
+max_examples = 16
 shuffle = true
 seed = 42
 include_env_tips = false

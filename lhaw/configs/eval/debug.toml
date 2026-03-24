@@ -1,14 +1,13 @@
-# Quick smoke (1 example). More presets: configs/eval/*.toml (standard, heavy, model tiers, slices).
+# Debug preset (16 examples). More presets: configs/eval/*.toml (standard, heavy, model tiers, slices).
 # Run from repo root: uv run prime eval run configs/eval.toml (set PRIME_API_KEY).
 
 model = "z-ai/glm-4.7"
 api_base_url = "https://api.pinference.ai/api/v1"
 api_key_var = "PRIME_API_KEY"
 
-num_examples = 1
+num_examples = 16
 rollouts_per_example = 1
-max_concurrent = 8
-
+max_concurrent = 16
 save_results = true
 debug = false
 
@@ -22,7 +21,7 @@ split = "test"
 source_dataset = "all"
 ambiguity_class = "all"
 information_dimension = "all"
-max_examples = 1
+max_examples = 16
 shuffle = false
 include_env_tips = false
 
