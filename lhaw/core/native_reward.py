@@ -7,7 +7,8 @@ from pathlib import Path
 import verifiers as vf
 from verifiers.utils.data_utils import extract_boxed_answer
 
-from .transcript import extract_ask_user_interactions, normalize_info
+from .state import get_private_metadata
+from .transcript import extract_ask_user_interactions
 
 
 @dataclass(frozen=True)
@@ -224,8 +225,8 @@ class NativeRewardRubric(vf.Rubric):
                 if isinstance(value, (int, float))
             }
 
-        info = normalize_info(state.get("info", {}))
-        summary = info.get("native_summary")
+        private_metadata = get_private_metadata(state)
+        summary = private_metadata.get("native_summary")
         summary_pairs = [
             ("pass_at_3", _metric_from_summary(summary, "pass_at_3")),
             ("checkpoint_percent", _metric_from_summary(summary, "checkpoint_percent")),
@@ -239,20 +240,23 @@ class NativeRewardRubric(vf.Rubric):
         computed = {key: value for key, value in summary_pairs if value is not None}
 
         if not computed:
-            trials = _extract_trial_results(info.get("native_trials", []))
-            baseline_trials = _extract_trial_results(info.get("native_baseline_trials", []))
+            trials = _extract_trial_results(private_metadata.get("native_trials", []))
+            baseline_trials = _extract_trial_results(
+                private_metadata.get("native_baseline_trials", [])
+            )
             computed = _summary_from_trials(trials, baseline_trials)
 
         state["_native_summary_cache"] = computed
         return computed
 
     def _require_reward(self, state: vf.State) -> float:
-        payload = _load_result_payload(normalize_info(state.get("info", {})), state)
+        payload = _load_result_payload(get_private_metadata(state), state)
         reward = _normalized_reward_from_payload(payload)
         if reward is None:
             raise ValueError(
                 "native_reward mode requires native benchmark outputs. "
-                "Provide one of info['native_result'] or info['native_result_path']."
+                "Provide one of private_metadata['native_result'] or "
+                "private_metadata['native_result_path']."
             )
         return reward
 

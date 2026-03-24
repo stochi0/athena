@@ -20,8 +20,6 @@ Verifiers environment for the **LHAW** clarification loop with two explicit rewa
 
 Python 3.11+. Dependencies are declared in `pyproject.toml` (`verifiers`, `datasets`).
 
-From this directory (`lhaw/`):
-
 ```bash
 uv sync
 uv run python -c "import lhaw_rlm; print(lhaw_rlm.load_environment)"
@@ -31,7 +29,7 @@ Dev tools: `uv sync --group dev` (Ruff, pytest).
 
 ## Evaluation
 
-From this directory (so `lhaw_rlm` and `core` resolve on `sys.path`):
+From the repo root (so `lhaw_rlm` and `core` resolve on `sys.path`):
 
 ```bash
 uv run prime eval run configs/eval.toml
@@ -64,8 +62,15 @@ Set `reward_mode` under `[eval.env_args]`:
 
 ## Packaging and Prime Hub
 
+Build:
+
 ```bash
 uv build
+```
+
+Push to the Environments Hub (from this directory):
+
+```bash
 prime env push
 ```
 
@@ -73,4 +78,4 @@ The PyPI distribution name is `lhaw_rlm`; after install, use `import lhaw_rlm`. 
 
 ## CI
 
-Add GitHub Actions under `lhaw/.github/workflows/` (e.g. Ruff, pytest, `uv build`) scoped to this package. For **LHAW hosted evals**, a workflow can run `./scripts/run_lhaw_high_signal_hosted.sh`; set repository secrets `PRIME_API_KEY` and `PRIME_EVAL_ENV_ID`.
+Manual workflow **LHAW hosted evals** (`.github/workflows/lhaw-hosted-evals.yml`) runs the high-signal hosted bundle; configure repository secrets `PRIME_API_KEY` and `PRIME_EVAL_ENV_ID`.

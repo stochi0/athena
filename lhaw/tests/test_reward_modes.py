@@ -3,8 +3,9 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from core.dataset import build_prompt_content
+from core.dataset import build_prompt_content, transform_example
 from core.native_reward import NativeRewardRubric, pass_at_k
+from core.state import PRIVATE_METADATA_KEY
 
 
 def test_build_prompt_content_changes_with_reward_mode() -> None:
@@ -84,3 +85,42 @@ def test_native_reward_metrics_compute_from_trial_lists() -> None:
     assert ask_percent_metric == pytest.approx(2 / 3)
     assert avg_questions_metric == 1.5
     assert gain_per_question_metric > 0.0
+
+
+def test_transform_example_keeps_oracle_fields_out_of_public_info() -> None:
+    rollout_input = transform_example(
+        {
+            "variant_id": "variant-1",
+            "dataset": "source-bench",
+            "ambiguity_class": "divergent",
+            "information_dimension": ["context"],
+            "original_task": "task-name",
+            "underspecified_prompt": "Do the thing.",
+            "original_prompt": "Do the specific thing with these exact inputs.",
+            "removed_segments": [{"id": "seg-1", "value": "exact inputs"}],
+            "expected_questions": [{"segment_id": "seg-1", "question": "Which inputs?"}],
+            "terminal_states": "done",
+            "native_result": {"success": True, "score": 1, "total": 1},
+        },
+        0,
+        include_env_tips=False,
+        reward_mode="reconstruction_judge",
+    )
+
+    public_info = rollout_input["info"]
+    assert isinstance(public_info, dict)
+    assert set(public_info) == {
+        "variant_id",
+        "source_dataset",
+        "ambiguity_class",
+        "information_dimension",
+    }
+    assert "original_prompt" not in public_info
+    assert "removed_segments" not in public_info
+    assert "expected_questions" not in public_info
+    assert "native_result" not in public_info
+
+    private_metadata = rollout_input[PRIVATE_METADATA_KEY]
+    assert isinstance(private_metadata, dict)
+    assert private_metadata["original_prompt"] == "Do the specific thing with these exact inputs."
+    assert private_metadata["removed_segments"] == [{"id": "seg-1", "value": "exact inputs"}]

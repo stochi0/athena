@@ -9,9 +9,9 @@ from verifiers.utils.data_utils import extract_boxed_answer
 from .transcript import (
     extract_ask_user_interactions,
     format_ask_user_transcript,
-    normalize_info,
     normalize_removed_segments,
 )
+from .state import get_private_metadata
 from .types import AskUserInteraction
 
 
@@ -178,12 +178,15 @@ class ReconstructionJudgeRubric(vf.JudgeRubric):
         if not final_answer:
             return 0.0
 
-        info = normalize_info(state.get("info", {}))
+        private_metadata = get_private_metadata(state)
 
-        original_prompt = str(info.get("original_prompt", ""))
-        underspecified_prompt = str(info.get("underspecified_prompt", ""))
+        info = state.get("info", {})
+        if not isinstance(info, dict):
+            info = {}
+        original_prompt = str(private_metadata.get("original_prompt", ""))
+        underspecified_prompt = str(private_metadata.get("underspecified_prompt", ""))
         ambiguity_class = str(info.get("ambiguity_class", ""))
-        removed_segments = normalize_removed_segments(info.get("removed_segments", []))
+        removed_segments = normalize_removed_segments(private_metadata.get("removed_segments", []))
         interactions = extract_ask_user_interactions(state.get("completion", []))
 
         judge_prompt = build_reconstruction_judge_prompt(

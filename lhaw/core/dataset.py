@@ -16,6 +16,7 @@ from .constants import (
     get_env_tips,
     get_task_prompt_prefix,
 )
+from .state import PRIVATE_METADATA_KEY
 
 
 def validate_config(config: EnvironmentConfig) -> None:
@@ -80,10 +81,12 @@ def transform_example(
         "answer": example.get("original_prompt", ""),
         "info": {
             "variant_id": example.get("variant_id", ""),
-            "original_task": example.get("original_task", ""),
             "source_dataset": example.get("dataset", ""),
             "ambiguity_class": example.get("ambiguity_class", ""),
             "information_dimension": example.get("information_dimension", []),
+        },
+        PRIVATE_METADATA_KEY: {
+            "original_task": example.get("original_task", ""),
             "removed_segments": removed_segments,
             "expected_questions": example.get("expected_questions", []) or [],
             "original_prompt": example.get("original_prompt", ""),

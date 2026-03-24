@@ -7,6 +7,8 @@ from datasets import Dataset
 from verifiers.envs.experimental.rlm_env import RLMEnv
 from verifiers.utils.async_utils import maybe_await
 
+from .state import get_private_metadata
+
 
 def extract_removed_values(removed_segments: object) -> list[str]:
     if not isinstance(removed_segments, list):
@@ -52,13 +54,11 @@ class LHAWRLMEnv(RLMEnv):
     async def ask_user(self, question: str, context: str = "") -> str:
         """Ask a simulated user for missing task information."""
         state = self._get_current_state_for_root_tool()
-        info = state.get("info", {})
-        if not isinstance(info, dict):
-            info = {}
+        private_metadata = get_private_metadata(state)
 
-        primary_task = str(info.get("original_prompt", ""))
-        underspecified_prompt = str(info.get("underspecified_prompt", ""))
-        removed_values = extract_removed_values(info.get("removed_segments", []))
+        primary_task = str(private_metadata.get("original_prompt", ""))
+        underspecified_prompt = str(private_metadata.get("underspecified_prompt", ""))
+        removed_values = extract_removed_values(private_metadata.get("removed_segments", []))
 
         if self.reward_mode == "native_reward":
             system_prompt = f"""You are the intended user in a long-horizon workflow benchmark.
