@@ -12,6 +12,8 @@ Verifiers environment for the **LHAW** clarification loop with two explicit rewa
 | `lhaw_rlm.py` | Entrypoint: `load_environment()` for Prime / verifiers |
 | `core/` | Config, dataset transform, `LHAWRLMEnv`, judge rubric |
 | `configs/eval.toml` | Example `prime eval run` smoke config |
+| `configs/eval/` | Additional `eval*.toml` presets (scale, model tiers, dataset/ambiguity/dimension slices, reward modes) |
+| `scripts/run_lhaw_high_signal_hosted.sh` | Run the research “high-signal” TOMLs on Prime **hosted** workers (`--hosted`) |
 | `docs/hf_dataset_schema.md` | HF dataset column reference |
 
 ## Setup
@@ -37,6 +39,20 @@ uv run prime eval run configs/eval.toml
 
 Set the API key named in `configs/eval.toml` (e.g. `PRIME_API_KEY`). Optionally add `configs/endpoints.toml` for shared endpoint registry.
 
+### Hosted high-signal evals (Prime Evals)
+
+Hosted runs execute on Prime infrastructure and appear in **Prime Evals** automatically (no separate `prime eval push` for that flow). You need a **published** environment (`prime env push`) and your Hub slug (e.g. `primeintellect/lhaw_rlm`).
+
+```bash
+export PRIME_API_KEY=... PRIME_EVAL_ENV_ID=your-org/lhaw_rlm
+prime config set-api-key "$PRIME_API_KEY"
+# Optional: publish latest env before evals
+# LHAW_PUSH_ENV=1 ./scripts/run_lhaw_high_signal_hosted.sh
+./scripts/run_lhaw_high_signal_hosted.sh
+```
+
+The script rewrites each TOML to use `PRIME_EVAL_ENV_ID` and drops `env_dir_path` (hosted loads the Hub package). Subsets: `LHAW_EVAL_SUBSET=all|ambiguity|domains|dimensions`. GitHub: **Actions → LHAW hosted evals** (secrets `PRIME_API_KEY`, `PRIME_EVAL_ENV_ID`).
+
 ### Reward Modes
 
 Set `reward_mode` under `[eval.env_args]`:
@@ -57,4 +73,4 @@ The PyPI distribution name is `lhaw_rlm`; after install, use `import lhaw_rlm`. 
 
 ## CI
 
-Add GitHub Actions under `lhaw/.github/workflows/` (e.g. Ruff, pytest, `uv build`) if you want CI scoped to this package.
+Add GitHub Actions under `lhaw/.github/workflows/` (e.g. Ruff, pytest, `uv build`) scoped to this package. For **LHAW hosted evals**, a workflow can run `./scripts/run_lhaw_high_signal_hosted.sh`; set repository secrets `PRIME_API_KEY` and `PRIME_EVAL_ENV_ID`.

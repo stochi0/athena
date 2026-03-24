@@ -1,6 +1,6 @@
 [project]
 name = "lhaw_rlm"
-version = "0.1.0"
+version = "0.1.1"
 description = "LHAW RLM environment: underspecified prompts, simulated user clarification (ask_user), and LLM judge scoring on the ScaleAI/lhaw dataset."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -27,7 +27,7 @@ dev = [
 ]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "0.1.1"
 line-length = 100
 src = ["core", "tests", "lhaw_rlm.py"]
 
