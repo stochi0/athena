@@ -636,16 +636,17 @@ wheels = [
 
 [[package]]
 name = "excel-mcp-server"
-version = "0.1.5"
+version = "0.1.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "fastmcp" },
     { name = "mcp", extra = ["cli"] },
     { name = "openpyxl" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/64/c2/6b6908478ebaab34b88d5d6c06b932ffbea1a84ddd7ff7eca021a598eeb5/excel_mcp_server-0.1.5.tar.gz", hash = "sha256:6d5e302cd15a81369250cf4af07824205af468c7442581d7687bd86379a8eb81", size = 22704, upload-time = "2025-07-05T08:37:19.99Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/73/7472df2843504a599ae10e7918fcc7bedf9ba5e64f3e4b075b39498b7802/excel_mcp_server-0.1.7.tar.gz", hash = "sha256:b18e46ec72e3221d38303fb4dfc1e6f4aaf695b1f3dab505907e8a7f9cbddae7", size = 23251, upload-time = "2025-08-06T20:08:21.101Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e6/18/84191e13766219014c67c4b7d1c1c599ce923603a928a5664324e280ec9b/excel_mcp_server-0.1.5-py3-none-any.whl", hash = "sha256:6ed4aa5e3ea45f47e7ae1884bfca069c286b6d497e8320e04b7740b9830e5935", size = 30213, upload-time = "2025-07-05T08:37:18.731Z" },
+    { url = "https://files.pythonhosted.org/packages/16/0e/df5222e1564de3ccc88479d8c599a2b3b2bd339715e141a844d876430d50/excel_mcp_server-0.1.7-py3-none-any.whl", hash = "sha256:bbaa93c555585a260c3b674e22fc58b680b96c36b3377dc06a3d176a3fb6f43a", size = 30653, upload-time = "2025-08-06T20:08:19.895Z" },
 ]
 
 [[package]]
@@ -1235,7 +1236,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "datasets" },
-    { name = "excel-mcp-server", specifier = ">=0.1.5" },
+    { name = "excel-mcp-server", specifier = ">=0.1.7" },
     { name = "fastmcp", specifier = "<3" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pandas", specifier = ">=3.0.1" },

@@ -23,6 +23,11 @@ For each rollout, the environment:
 5. Runs the task in `RLMEnv`.
 6. Reuses LOCA's evaluator through `env.step()` for scoring, with sandbox filesystem sync before evaluation.
 
+Reward behavior:
+
+- Training reward is the LOCA evaluator result only.
+- Auxiliary signals such as task staging and final-answer readiness are recorded as metrics, not added to the reward.
+
 ## LOCA Source Resolution
 
 This package is standalone in layout, but still depends on LOCA-bench code for task implementations and evaluators.

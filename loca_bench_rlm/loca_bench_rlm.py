@@ -53,14 +53,9 @@ class LOCABenchRLMEnv(RLMEnv):
         ensure_loca_import_path(self.loca_root)
 
         dataset = build_dataset(config)
-        rubric = LOCABenchRubric(
-            funcs=[
-                loca_pass_reward,
-                task_generated_metric,
-                final_answer_ready_metric,
-            ],
-            weights=[1.0, 0.5, 0.5],
-        )
+        rubric = LOCABenchRubric(funcs=[loca_pass_reward], weights=[1.0])
+        rubric.add_metric(task_generated_metric)
+        rubric.add_metric(final_answer_ready_metric)
 
         super().__init__(
             dataset=dataset,
