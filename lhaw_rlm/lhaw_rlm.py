@@ -1,29 +1,34 @@
 """
-LHAW Clarification RLM Environment.
+LHAW Interactive RLM Environment.
 
-Implements an RLM environment for the `ScaleAI/lhaw` dataset, where the model
-is evaluated on whether it asks the right clarifying questions for an
-underspecified task rather than trying to solve the task directly.
+This environment implements the closest paper-aligned interaction loop that is
+practical with the released `ScaleAI/lhaw` dataset and the `verifiers` RLM
+runtime:
 
-The dataset provides:
-- an underspecified prompt shown to the model
-- removed segments describing what information is missing
-- expected clarifying questions that would resolve the ambiguity
+- the model sees an underspecified prompt
+- it can ask a simulated user for clarification via an `ask_user(...)` tool
+- it must produce a fully specified, clarified task as its final answer
+- an LLM judge compares that clarified task against the original prompt
 
-This environment follows the same general structure as the other RLM
-environments in `research-environments/environments`: it exposes a
-`load_environment(...)` entrypoint, loads from Hugging Face, transforms the
-dataset into `prompt / answer / info`, and uses a deterministic rubric.
+Unlike the full paper setup, this environment does not execute the underlying
+benchmark tasks (e.g. TAC / SWE-Bench / MCP-Atlas native harnesses) and
+therefore cannot reproduce benchmark-native pass@3 or checkpoint metrics inside
+one standalone `verifiers` environment. Instead, it faithfully models the
+clarification interaction itself and scores the reconstructed task spec with an
+LLM judge.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import random
 from typing import Any, Literal
 
+import httpx
 import verifiers as vf
 from datasets import load_dataset
+from openai import AsyncOpenAI
 from verifiers.envs.experimental.rlm_env import RLMEnv
 from verifiers.utils.data_utils import extract_boxed_answer
 
@@ -35,10 +40,10 @@ INFORMATION_DIMENSIONS = frozenset({"goal", "constraint", "input", "context"})
 
 _ENV_TIPS = """
 <env_tips>
-This is an underspecification-detection task, not a task-solving task.
-Ask the fewest clarifying questions needed to unblock the work.
-Prefer questions that resolve missing identifiers, constraints, inputs, or missing background context.
-Return one clarifying question per line.
+Use the Python REPL to reason about the task and call `ask_user(...)` when you
+need missing information. Once you have enough information, write a fully
+specified version of the task into `answer["content"]` and then set
+`answer["ready"] = True`.
 </env_tips>"""
 
 
@@ -51,96 +56,306 @@ def _as_list(value: str | list[str] | None) -> list[str]:
     return list(value)
 
 
-def _extract_questions(answer: str) -> list[str]:
-    """Parse a model response into a list of question lines."""
-    raw = extract_boxed_answer(answer) or answer or ""
-    raw = raw.strip()
-    if not raw:
+def _format_removed_segments(segments: list[dict[str, Any]]) -> str:
+    """Render removed segments for prompts and judging."""
+    if not segments:
+        return "None"
+
+    lines = []
+    for segment in segments:
+        dimension = str(segment.get("dimension", ""))
+        subdimension = str(segment.get("subdimension", ""))
+        value = str(segment.get("value", ""))
+        segment_id = str(segment.get("id", ""))
+        lines.append(
+            f"- id={segment_id or 'unknown'} dimension={dimension or 'unknown'} "
+            f"subdimension={subdimension or 'unknown'} value={value or '(empty)'}"
+        )
+    return "\n".join(lines)
+
+
+def _message_role(message: Any) -> str:
+    """Get message role from pydantic or dict-style message objects."""
+    if isinstance(message, dict):
+        return str(message.get("role", ""))
+    return str(getattr(message, "role", ""))
+
+
+def _message_content(message: Any) -> str:
+    """Get string content from pydantic or dict-style message objects."""
+    if isinstance(message, dict):
+        return str(message.get("content", ""))
+    return str(getattr(message, "content", ""))
+
+
+def _extract_ask_user_interactions(completion: Any) -> list[dict[str, str]]:
+    """Extract ask_user question/response pairs from the final conversation."""
+    if not isinstance(completion, list):
         return []
-    questions = [line.strip() for line in raw.splitlines() if line.strip()]
-    return questions if questions else [raw]
+
+    interactions: list[dict[str, str]] = []
+    pending_by_id: dict[str, int] = {}
+
+    for message in completion:
+        role = _message_role(message)
+
+        if role == "assistant":
+            tool_calls = getattr(message, "tool_calls", None)
+            if isinstance(message, dict):
+                tool_calls = message.get("tool_calls", tool_calls)
+            if not isinstance(tool_calls, list):
+                continue
+
+            for tool_call in tool_calls:
+                tool_name = getattr(tool_call, "name", "")
+                tool_call_id = getattr(tool_call, "id", "")
+                arguments = getattr(tool_call, "arguments", "{}")
+
+                if isinstance(tool_call, dict):
+                    tool_name = str(tool_call.get("name", tool_name))
+                    tool_call_id = str(tool_call.get("id", tool_call_id))
+                    arguments = tool_call.get("arguments", arguments)
+
+                if tool_name != "ask_user":
+                    continue
+
+                question = ""
+                context = ""
+                try:
+                    parsed_args = json.loads(arguments) if isinstance(arguments, str) else {}
+                    if isinstance(parsed_args, dict):
+                        question = str(parsed_args.get("question", "")).strip()
+                        context = str(parsed_args.get("context", "")).strip()
+                except json.JSONDecodeError:
+                    question = str(arguments).strip()
+
+                interactions.append(
+                    {
+                        "question": question,
+                        "context": context,
+                        "response": "",
+                    }
+                )
+                if tool_call_id:
+                    pending_by_id[tool_call_id] = len(interactions) - 1
+
+        elif role == "tool":
+            tool_call_id = getattr(message, "tool_call_id", "")
+            if isinstance(message, dict):
+                tool_call_id = str(message.get("tool_call_id", tool_call_id))
+            if tool_call_id and tool_call_id in pending_by_id:
+                interactions[pending_by_id[tool_call_id]]["response"] = _message_content(message).strip()
+
+    return interactions
 
 
-def _expected_question_groups(state: vf.State) -> list[dict[str, Any]]:
-    """Return expected question groups from state answer/info."""
-    answer = state.get("answer", "")
-    try:
-        parsed = json.loads(answer) if answer else []
-    except json.JSONDecodeError:
-        parsed = []
+def _format_ask_user_transcript(interactions: list[dict[str, str]]) -> str:
+    """Render ask_user interactions for judging."""
+    if not interactions:
+        return "No ask_user calls."
 
-    if isinstance(parsed, list):
-        return [group for group in parsed if isinstance(group, dict)]
-    return []
-
-
-def _question_efficiency_score(
-    predicted_questions: list[str], groups: list[dict[str, Any]], ambiguity_class: str
-) -> float:
-    """Encourage asking few questions, following the paper's cost framing."""
-    if not predicted_questions:
-        return 0.0 if groups else 1.0
-
-    target_count = max(1, len(groups))
-    extra_questions = max(0, len(predicted_questions) - target_count)
-
-    if ambiguity_class == "benign":
-        return 1.0 / (1.0 + extra_questions + len(predicted_questions) / max(1, target_count))
-    return 1.0 / (1.0 + extra_questions)
+    lines = []
+    for index, interaction in enumerate(interactions, start=1):
+        lines.append(f"Question {index}: {interaction.get('question', '')}")
+        if interaction.get("context"):
+            lines.append(f"Context {index}: {interaction['context']}")
+        lines.append(f"User response {index}: {interaction.get('response', '')}")
+    return "\n".join(lines)
 
 
-def _ask_decision_reward(
-    predicted_questions: list[str], groups: list[dict[str, Any]], ambiguity_class: str
-) -> float:
-    """Score whether the agent chose to ask at all.
+class LHAWJudgeRubric(vf.Rubric):
+    """Judge-based rubric for the interactive LHAW clarification task."""
 
-    This follows the paper's cost-sensitive framing:
-    - outcome-critical: asking is necessary
-    - benign: asking is usually unnecessary and should be penalized
-    - divergent: sits between the two extremes
-    """
-    asked = bool(predicted_questions)
+    def __init__(
+        self,
+        judge_client: AsyncOpenAI,
+        judge_model: str,
+        judge_sampling_args: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__()
+        self.judge_client = judge_client
+        self.judge_model = judge_model
+        self.judge_sampling_args = judge_sampling_args or {}
+        self.add_reward_func(self.reconstruction_reward, weight=1.0)
+        self.add_metric(self.ask_user_count_metric)
+        self.add_metric(self.asked_any_metric)
+        self.add_metric(self.final_answer_present_metric)
 
-    if ambiguity_class == "outcome-critical":
-        return 1.0 if asked else 0.0
-    if ambiguity_class == "benign":
-        return 1.0 if not asked else 0.0
-    if ambiguity_class == "divergent":
-        return 1.0 if asked else 0.5
-    return 1.0 if asked else 0.5
+    async def _judge_yes_no(self, prompt: str, state: vf.State) -> float:
+        cached = state.get("judge_response")
+        if isinstance(cached, dict) and prompt in cached:
+            content = str(cached[prompt])
+            return 1.0 if "yes" in content.lower() else 0.0
+
+        judge_args = {k: v for k, v in self.judge_sampling_args.items() if v is not None}
+        response = await self.judge_client.chat.completions.create(
+            model=self.judge_model,
+            messages=[{"role": "user", "content": prompt}],
+            **judge_args,
+        )
+        content = str(response.choices[0].message.content or "")
+        if not isinstance(cached, dict):
+            cached = {}
+        cached[prompt] = content
+        state["judge_response"] = cached
+        return 1.0 if "yes" in content.lower() else 0.0
+
+    async def reconstruction_reward(self, state: vf.State, **_kwargs: Any) -> float:
+        """Judge whether the final clarified task faithfully recovers the original task."""
+        final_answer = extract_boxed_answer(str(state.get("final_answer", ""))).strip()
+        if not final_answer:
+            return 0.0
+
+        info = state.get("info", {})
+        if not isinstance(info, dict):
+            info = {}
+
+        original_prompt = str(info.get("original_prompt", ""))
+        underspecified_prompt = str(info.get("underspecified_prompt", ""))
+        ambiguity_class = str(info.get("ambiguity_class", ""))
+        removed_segments = info.get("removed_segments", [])
+        interactions = _extract_ask_user_interactions(state.get("completion", []))
+
+        judge_prompt = f"""You are evaluating an agent on an underspecified task clarification benchmark.
+
+The agent originally saw this UNDERSPECIFIED task:
+```text
+{underspecified_prompt}
+```
+
+The full ORIGINAL task was:
+```text
+{original_prompt}
+```
+
+Ambiguity class:
+{ambiguity_class}
+
+Removed segments:
+{_format_removed_segments(removed_segments if isinstance(removed_segments, list) else [])}
+
+The agent's clarification transcript:
+{_format_ask_user_transcript(interactions)}
+
+The agent's FINAL clarified task:
+```text
+{final_answer}
+```
+
+Answer "yes" if the final clarified task is a faithful and usable reconstruction
+of the original task:
+- it preserves the original task intent
+- it restores the missing critical information from the original task
+- it does not contradict or materially distort the original task
+- it is sufficiently specified to execute
+
+Answer "no" otherwise.
+
+Respond with only "yes" or "no"."""
+
+        return await self._judge_yes_no(judge_prompt, state)
+
+    async def ask_user_count_metric(self, state: vf.State, **_kwargs: Any) -> float:
+        root_tool_calls = state.get("root_tool_calls", {})
+        if not isinstance(root_tool_calls, dict):
+            return 0.0
+        return float(root_tool_calls.get("ask_user", 0) or 0.0)
+
+    async def asked_any_metric(self, state: vf.State, **_kwargs: Any) -> float:
+        return 1.0 if await self.ask_user_count_metric(state) > 0 else 0.0
+
+    async def final_answer_present_metric(self, state: vf.State, **_kwargs: Any) -> float:
+        final_answer = extract_boxed_answer(str(state.get("final_answer", ""))).strip()
+        return 1.0 if final_answer else 0.0
 
 
-def _paper_aligned_reward(
-    predicted_questions: list[str], groups: list[dict[str, Any]], ambiguity_class: str
-) -> float:
-    """Primary reward aligned with the LHAW paper's clarification framing.
+class LHAWInteractiveRLMEnv(RLMEnv):
+    """Interactive LHAW environment with an ask_user root tool."""
 
-    The paper emphasizes that clarification should be:
-    1. necessary when missing information is outcome-critical,
-    2. selective because user interruption is costly, and
-    3. minimized on benign tasks where agents can infer the missing detail.
-    
-    Since this standalone environment evaluates question-asking rather than full
-    downstream task recovery, we use a class-conditional proxy:
-    - outcome-critical: strongly reward asking relevant questions
-    - divergent: reward helpful clarification, but allow some no-ask credit
-    - benign: primarily reward not asking at all
-    """
-    decision = _ask_decision_reward(predicted_questions, groups, ambiguity_class)
-    efficiency = _question_efficiency_score(predicted_questions, groups, ambiguity_class)
+    def __init__(
+        self,
+        dataset: Any,
+        rubric: vf.Rubric,
+        user_simulator_client: AsyncOpenAI,
+        user_simulator_model: str,
+        **kwargs: Any,
+    ) -> None:
+        self.user_simulator_client = user_simulator_client
+        self.user_simulator_model = user_simulator_model
+        super().__init__(
+            dataset=dataset,
+            rubric=rubric,
+            root_tools=[self.ask_user],
+            **kwargs,
+        )
 
-    if ambiguity_class == "outcome-critical":
-        return 0.7 * decision + 0.3 * efficiency
+    def _get_current_state_for_root_tool(self) -> dict[str, Any]:
+        context = self._root_tool_context_var.get()
+        if not isinstance(context, dict):
+            raise RuntimeError("ask_user is only available inside the RLM REPL.")
+        state = context.get("state")
+        if not isinstance(state, dict):
+            raise RuntimeError("Current rollout state is unavailable.")
+        return state
 
-    if ambiguity_class == "divergent":
-        return 0.6 * decision + 0.4 * efficiency
+    async def ask_user(self, question: str, context: str = "") -> str:
+        """Ask a simulated user for missing task information.
 
-    if ambiguity_class == "benign":
-        if not predicted_questions:
-            return 1.0
-        return 0.2 * decision + 0.8 * efficiency
+        Args:
+            question: Clarifying question for the user.
+            context: Optional brief context about the current state of work.
 
-    return 0.5 * decision + 0.5 * efficiency
+        Returns:
+            A concise response derived from the original task and removed segments.
+        """
+        state = self._get_current_state_for_root_tool()
+        info = state.get("info", {})
+        if not isinstance(info, dict):
+            info = {}
+
+        primary_task = str(info.get("original_prompt", ""))
+        underspecified_prompt = str(info.get("underspecified_prompt", ""))
+        removed_segments = info.get("removed_segments", [])
+        removed_values = []
+        if isinstance(removed_segments, list):
+            for segment in removed_segments:
+                if isinstance(segment, dict) and segment.get("value"):
+                    removed_values.append(str(segment["value"]))
+
+        system_prompt = f"""You are simulating a user who intended a fully specified task but only gave a partial prompt.
+
+The COMPLETE original task was:
+```text
+{primary_task}
+```
+
+The UNDERSPECIFIED prompt the agent actually saw was:
+```text
+{underspecified_prompt}
+```
+
+Removed values:
+{", ".join(removed_values) if removed_values else "None"}
+
+Your job:
+- answer only the agent's clarification question
+- provide the exact missing information from the original task when possible
+- be concise and natural
+- do not reveal hidden metadata or mention that you are a simulator
+"""
+
+        user_prompt = f"Question: {question}"
+        if context.strip():
+            user_prompt += f"\n\nContext: {context.strip()}"
+
+        response = await self.user_simulator_client.chat.completions.create(
+            model=self.user_simulator_model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        return str(response.choices[0].message.content or "").strip()
 
 
 def load_environment(
@@ -154,8 +369,13 @@ def load_environment(
     shuffle: bool = False,
     seed: int | None = None,
     include_env_tips: bool = False,
+    # Judge / simulator options
+    judge_model: str = "gpt-5-mini",
+    user_simulator_model: str = "openai/gpt-5.2",
+    llm_api_key_var: str = "OPENAI_API_KEY",
+    llm_base_url: str | None = None,
     # RLM options
-    max_turns: int = 12,
+    max_turns: int = 20,
     sub_llm_max_turns: int = 5,
     sub_model: str | None = None,
     max_sub_llm_parallelism: int = 5,
@@ -164,7 +384,7 @@ def load_environment(
     abort_on_code_timeout: bool = False,
     max_startup_wait_seconds: int = 120,
     pip_install_packages: str = "",
-    repl_language: Literal["bash", "python"] = "bash",
+    repl_language: Literal["bash", "python"] = "python",
     # Sandbox resource options
     sandbox_docker_image: str = "python:3.11-slim",
     sandbox_cpu_cores: int = 1,
@@ -175,7 +395,7 @@ def load_environment(
     **kwargs,
 ) -> vf.Environment:
     """
-    Load the LHAW clarification RLM environment.
+    Load the interactive LHAW RLM environment.
 
     Args:
         split: Dataset split to use. The public LHAW release currently exposes
@@ -189,8 +409,14 @@ def load_environment(
         max_examples: Optional post-filter cap on dataset size.
         shuffle: Whether to shuffle the dataset.
         seed: Random seed for shuffling.
-        include_env_tips: If True, append environment-specific guidance to the
-            prompt.
+        include_env_tips: If True, append environment-specific guidance to the prompt.
+        judge_model: LLM used to judge the final clarified task against the
+            original prompt.
+        user_simulator_model: LLM used to answer `ask_user(...)` requests.
+        llm_api_key_var: Environment variable containing the API key for judge
+            and simulator calls.
+        llm_base_url: Optional OpenAI-compatible base URL for judge and
+            simulator calls.
         max_turns: Maximum REPL iterations.
         sub_llm_max_turns: Max tool-calling turns for each sub-LLM call.
         sub_model: Model for sub-LLM calls (defaults to same as root model).
@@ -246,22 +472,22 @@ def load_environment(
     def transform_example(example: dict[str, Any], idx: int) -> dict[str, Any]:
         prompt_content = (
             "Below is an underspecified task.\n"
-            "Do not solve it yet.\n"
-            "Ask the minimum set of clarifying questions needed before you can reliably proceed.\n"
-            "Return only the clarifying question(s), one per line.\n\n"
+            "Your job is to recover a fully specified, executable version of the task.\n"
+            "If information is missing, use the `ask_user(question, context='')` tool.\n"
+            "Once you have enough information, write the fully specified task into `answer[\"content\"]`.\n"
+            "Do not execute the task itself; produce the clarified task specification only.\n\n"
             f"<underspecified_task>\n{example['underspecified_prompt']}\n</underspecified_task>"
         )
         if include_env_tips:
             prompt_content = prompt_content + _ENV_TIPS
 
-        expected_questions = example.get("expected_questions", []) or []
         removed_segments = example.get("removed_segments", []) or []
 
         return {
             "example_id": example.get("variant_id", idx),
             "prompt": [{"role": "user", "content": prompt_content}],
-            "task": "lhaw-clarification",
-            "answer": json.dumps(expected_questions),
+            "task": "lhaw-interactive-clarification",
+            "answer": example.get("original_prompt", ""),
             "info": {
                 "variant_id": example.get("variant_id", ""),
                 "original_task": example.get("original_task", ""),
@@ -269,8 +495,7 @@ def load_environment(
                 "ambiguity_class": example.get("ambiguity_class", ""),
                 "information_dimension": example.get("information_dimension", []),
                 "removed_segments": removed_segments,
-                "expected_questions": expected_questions,
-                "expected_question_groups": len(expected_questions),
+                "expected_questions": example.get("expected_questions", []) or [],
                 "original_prompt": example.get("original_prompt", ""),
                 "underspecified_prompt": example.get("underspecified_prompt", ""),
             },
@@ -292,34 +517,18 @@ def load_environment(
             raise ValueError(f"max_examples must be >= 0; got {max_examples}.")
         dataset = dataset.select(range(min(max_examples, len(dataset))))
 
-    def clarification_quality_reward(state: vf.State, **_kwargs) -> float:
-        """Primary reward aligned with the LHAW paper's cost-sensitive setup."""
-        predicted_questions = _extract_questions(state.get("final_answer", ""))
-        expected_groups = _expected_question_groups(state)
-        ambiguity = str(state.get("info", {}).get("ambiguity_class", ""))
-        return _paper_aligned_reward(predicted_questions, expected_groups, ambiguity)
-
-    def ask_decision_reward(state: vf.State, **_kwargs) -> float:
-        """Auxiliary metric: was the ask/no-ask decision appropriate for this class?"""
-        predicted_questions = _extract_questions(state.get("final_answer", ""))
-        expected_groups = _expected_question_groups(state)
-        ambiguity = str(state.get("info", {}).get("ambiguity_class", ""))
-        return _ask_decision_reward(predicted_questions, expected_groups, ambiguity)
-
-    def question_count_reward(state: vf.State, **_kwargs) -> float:
-        """Auxiliary metric: reward asking around the expected number of questions."""
-        predicted_questions = _extract_questions(state.get("final_answer", ""))
-        expected_groups = _expected_question_groups(state)
-        ambiguity = str(state.get("info", {}).get("ambiguity_class", ""))
-        return _question_efficiency_score(predicted_questions, expected_groups, ambiguity)
-
-    rubric = vf.Rubric(
-        funcs=[
-            clarification_quality_reward,
-            ask_decision_reward,
-            question_count_reward,
-        ],
-        weights=[1.0, 0.0, 0.0],
+    httpx_timeout = httpx.Timeout(1200)
+    httpx_limits = httpx.Limits(max_connections=256, max_keepalive_connections=256)
+    httpx_client = httpx.AsyncClient(limits=httpx_limits, timeout=httpx_timeout)
+    api_key = os.getenv(llm_api_key_var) if llm_api_key_var else None
+    llm_client = AsyncOpenAI(
+        base_url=llm_base_url,
+        api_key=api_key if api_key else "EMPTY",
+        http_client=httpx_client,
+    )
+    rubric = LHAWJudgeRubric(
+        judge_client=llm_client,
+        judge_model=judge_model,
     )
 
     sandbox_labels = kwargs.pop("sandbox_labels", ["lhaw-rlm"])
@@ -327,7 +536,11 @@ def load_environment(
         raise ValueError(f"sandbox_labels must be of type list[str]; you provided {sandbox_labels}")
     sandbox_labels = list(set(sandbox_labels))
 
-    return RLMEnv(
+    return LHAWInteractiveRLMEnv(
+        dataset=dataset,
+        rubric=rubric,
+        user_simulator_client=llm_client,
+        user_simulator_model=user_simulator_model,
         repl_language=repl_language,
         max_turns=max_turns,
         sub_llm_max_turns=sub_llm_max_turns,
@@ -344,8 +557,6 @@ def load_environment(
         sandbox_disk_size_gb=sandbox_disk_size_gb,
         sandbox_gpu_count=sandbox_gpu_count,
         sandbox_timeout_minutes=sandbox_timeout_minutes,
-        dataset=dataset,
-        rubric=rubric,
         sandbox_labels=sandbox_labels,
         **kwargs,
     )
