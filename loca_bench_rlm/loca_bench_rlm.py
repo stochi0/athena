@@ -19,7 +19,6 @@ from typing import Any
 
 import verifiers as vf
 from verifiers.envs.experimental.rlm_env import RLMEnv
-from verifiers.envs.experimental.rlm_env import SandboxRLMExecutor
 
 from core.config import Config
 from core.dataset import build_dataset
@@ -204,21 +203,31 @@ class LOCABenchRLMEnv(RLMEnv):
         if self.execution_backend != "sandbox":
             state["_loca_eval_synced"] = True
             return
-        if not isinstance(self._executor, SandboxRLMExecutor):
+        executor = getattr(self, "_executor", None)
+        # Do not import SandboxRLMExecutor: some verifiers builds omit it from the
+        # public module API while still providing a sandbox executor with these attrs.
+        if executor is None or not (
+            callable(getattr(executor, "_download_directory", None))
+            and hasattr(executor, "_sessions")
+        ):
             raise RuntimeError(
                 "Sandbox evaluation sync requested, but the active executor is not sandbox-backed."
             )
 
         rollout_id = str(state.get("rollout_id", ""))
-        session = self._executor._sessions.get(rollout_id)
-        if session is None or not session.sandbox_id:
+        sessions = getattr(executor, "_sessions", {})
+        session = sessions.get(rollout_id)
+        if session is None or not getattr(session, "sandbox_id", None):
             raise RuntimeError("Missing sandbox session for LOCA evaluation sync.")
 
-        remote_root = session.sandbox_fs_root or state.get("rlm_fs_root_remote")
+        remote_root = getattr(session, "sandbox_fs_root", None) or state.get(
+            "rlm_fs_root_remote"
+        )
         if not remote_root:
             raise RuntimeError("Missing sandbox filesystem root for LOCA evaluation sync.")
 
-        await self._executor._download_directory(
+        download = getattr(executor, "_download_directory")
+        await download(
             session.sandbox_id,
             str(remote_root),
             session.local_fs_root,
