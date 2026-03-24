@@ -230,3 +230,7 @@ rubric_discovery/
 
 # MacOS
 .DS_Store
+
+# Local eval / runtime artifacts (LHAW)
+outputs/
+logs/
