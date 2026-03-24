@@ -1,3 +1,1 @@
-# LHSR
-
-long horizon self reflection
+# LHAW
