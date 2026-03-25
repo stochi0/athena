@@ -4,7 +4,6 @@ from typing import cast
 
 import verifiers as vf
 
-
 PRIVATE_METADATA_KEY = "private_metadata"
 
 

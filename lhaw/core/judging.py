@@ -6,12 +6,12 @@ import verifiers as vf
 from verifiers.utils.async_utils import maybe_await
 from verifiers.utils.data_utils import extract_boxed_answer
 
+from .state import get_private_metadata
 from .transcript import (
     extract_ask_user_interactions,
     format_ask_user_transcript,
     normalize_removed_segments,
 )
-from .state import get_private_metadata
 from .types import AskUserInteraction
 
 

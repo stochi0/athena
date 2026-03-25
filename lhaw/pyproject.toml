@@ -27,7 +27,7 @@ dev = [
 ]
 
 [tool.ruff]
-target-version = "0.1.1"
+target-version = "py311"
 line-length = 100
 src = ["core", "tests", "lhaw_rlm.py"]
 
