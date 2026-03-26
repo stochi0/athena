@@ -55,6 +55,7 @@ async def evaluate_loca_rollout(state: dict[str, Any]) -> dict[str, Any]:
         return result
 
     host_task_dir = Path(str(state["loca_task_dir"]))
+    execution_backend = str(state.get("execution_backend", "local")).strip() or "local"
     sandbox_fs_root = Path(str(state["rlm_fs_root"]))
     sandbox_agent_workspace = sandbox_fs_root / "agent_workspace"
     host_agent_workspace = host_task_dir / "agent_workspace"
@@ -64,8 +65,15 @@ async def evaluate_loca_rollout(state: dict[str, Any]) -> dict[str, Any]:
         if callable(sync_hook):
             await maybe_await(sync_hook, state)
         if not sandbox_agent_workspace.exists():
+            available = []
+            if sandbox_fs_root.exists():
+                available = sorted(
+                    item.name for item in sandbox_fs_root.iterdir() if item.exists()
+                )
             raise FileNotFoundError(
-                f"Expected sandbox agent workspace at {sandbox_agent_workspace}"
+                "Missing agent workspace for grading at "
+                f"{sandbox_agent_workspace} (backend={execution_backend}, "
+                f"fs_root={sandbox_fs_root}, entries={available})"
             )
 
         replace_directory(sandbox_agent_workspace, host_agent_workspace)

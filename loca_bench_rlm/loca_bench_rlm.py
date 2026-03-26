@@ -12,6 +12,7 @@ generation and grading while exposing a clean `verifiers` RLM interface.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -49,6 +50,9 @@ class LOCABenchRLMEnv(RLMEnv):
         self.config = config
         self.env_root = get_env_root()
         self.loca_root = get_loca_root(**config.loca_root_kwargs())
+        self._loca_sub_tool_state_var: contextvars.ContextVar[dict[str, Any] | None] = (
+            contextvars.ContextVar("loca_sub_tool_state", default=None)
+        )
         ensure_loca_import_path(self.loca_root)
 
         dataset = build_dataset(config)
@@ -59,7 +63,7 @@ class LOCABenchRLMEnv(RLMEnv):
         super().__init__(
             dataset=dataset,
             rubric=rubric,
-            root_tools=[self.list_mcp_tools, self.call_mcp_tool],
+            tools=[self.list_mcp_tools, self.call_mcp_tool],
             max_iterations=config.max_turns,
             repl_language=config.repl_language,
             execution_backend=config.execution_backend,
@@ -84,11 +88,29 @@ class LOCABenchRLMEnv(RLMEnv):
     def _get_current_state_for_root_tool(self) -> dict[str, Any]:
         context = self._root_tool_context_var.get()
         if not isinstance(context, dict):
-            raise RuntimeError("LOCA MCP root tools are only available inside the REPL.")
+            state = self._loca_sub_tool_state_var.get()
+            if not isinstance(state, dict):
+                raise RuntimeError(
+                    "LOCA MCP tools are only available inside the active rollout context."
+                )
+            return state
         state = context.get("state")
         if not isinstance(state, dict):
             raise RuntimeError("Current rollout state is unavailable.")
         return state
+
+    async def _run_sub_llm(
+        self,
+        state: dict[str, Any],
+        client: Any,
+        model: str,
+        messages: list[dict[str, Any]],
+    ) -> Any:
+        token = self._loca_sub_tool_state_var.set(state)
+        try:
+            return await super()._run_sub_llm(state, client, model, messages)
+        finally:
+            self._loca_sub_tool_state_var.reset(token)
 
     async def list_mcp_tools(self) -> str:
         """List the rollout's available LOCA MCP tools as JSON."""
@@ -177,6 +199,7 @@ class LOCABenchRLMEnv(RLMEnv):
         state["loca_env_params"] = env_params
         state["loca_visible_paths"] = list(available_visible_paths)
         state["loca_mcp_server_names"] = list(mcp_manager.server_names)
+        state["execution_backend"] = self.execution_backend
 
         info["context_dir"] = str(context_dir)
         info["loca_reset_info"] = reset_info
