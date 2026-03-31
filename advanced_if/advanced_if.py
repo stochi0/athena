@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import Any
 
 import verifiers as vf
-
 from core.config import EnvironmentConfig
 from core.dataset import build_dataset
 from core.rubrics import build_rubric

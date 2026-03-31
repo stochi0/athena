@@ -2,8 +2,18 @@
 name = "advanced-if"
 version = "0.1.1"
 description = "Verifiers-native rubric discovery environment over facebook/AdvancedIF trajectories."
+readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"
+tags = [
+    "advanced-if",
+    "verifiers",
+    "datasets",
+    "single-turn",
+    "rubric",
+    "judge",
+    "advancedif",
+]
 dependencies = [
     "verifiers>=0.1.11",
     "datasets",
@@ -23,3 +33,12 @@ only-include = [
 dev = [
     "ruff>=0.15.4",
 ]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["core", "advanced_if.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
