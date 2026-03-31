@@ -1,74 +1,76 @@
-# AdvancedIF Rubric Discovery Environment
+# Advanced IF (`advanced_if`)
 
-Verifiers-native environment for learning to generate rubric lists from full
-conversation trajectories in `facebook/AdvancedIF`.
+Verifiers **single-turn** environment over [facebook/AdvancedIF](https://huggingface.co/datasets/facebook/AdvancedIF): the model reads a full conversation trajectory and emits a JSON rubric list; an LLM judge scores alignment with the gold rubrics.
 
-## What This Environment Does
+**Environment ID (Prime / verifiers / Hub):** `advanced_if` — matches the `env_id` in `advanced_if.py`. The installable package name in `pyproject.toml` is `advanced-if` (hyphens); import module is `advanced_if`.
 
-- Input: full trajectory (`conversation_history`) rendered as role-tagged text.
-- Target: rubric list from `prompt_metadata.rubrics`.
-- Model output: JSON object with `{"rubrics": [...]}`.
-- Reward: LLM judge alignment with the gold rubric list (coverage, faithfulness,
-  non-redundancy).
+## What this environment does
 
-This setup stays within verifiers-native environment/rubric/parser patterns.
+1. Builds rollouts from the Hub row: `conversation_history` is rendered as role-tagged text; gold rubrics come from `prompt_metadata.rubrics` (stored as the rollout `answer`).
+2. The policy completes in one assistant turn with JSON of the form `{"rubrics": ["…", …]}`.
+3. `AdvancedIFJudgeRubric` (`vf.JudgeRubric`) calls a judge model; reward is the mean of three booleans the judge must return as JSON: `coverage`, `faithful`, `non_redundant` (no synonyms or loose coercion).
+4. Optional `attach_dataset_stats` attaches split-level histograms to the rubric as `dataset_stats` for custom metrics.
 
-## Layout (same idea as `loca_bench_rlm`)
+## Repository layout
 
-- `advanced_if.py` — `AdvancedIFEnv(vf.SingleTurnEnv)`, `load_environment`, and `env_id` module for `prime eval`
-- `core/config.py` — `EnvironmentConfig`
-- `core/dataset.py` — Hub rows, `build_dataset`, `analyze_dataset`
-- `core/rubrics.py` — `AdvancedIFJudgeRubric` (extends `vf.JudgeRubric`), reward + metrics
-- `core/prompts.py` — system/user/judge prompt strings
-- `configs/debug.toml` — smoke eval (see also `configs/endpoints.toml`)
-- `configs/endpoints.toml` — Prime Inference endpoint registry
+| Path | Purpose |
+|------|---------|
+| `advanced_if.py` | Entrypoint: `AdvancedIFEnv`, `load_environment()` for Prime / verifiers |
+| `core/config.py` | `EnvironmentConfig` |
+| `core/dataset.py` | Hub → rollout rows, `analyze_dataset`, `build_dataset` |
+| `core/rubrics.py` | `AdvancedIFJudgeRubric`, judge client wiring |
+| `core/prompts.py` | System / user / judge prompt strings |
+| `configs/debug.toml` | Local smoke eval preset |
+| `configs/endpoints.toml` | Optional Prime Inference endpoint registry |
 
-## Dataset Analysis (full split: `facebook/AdvancedIF`, `train`)
+## Setup
 
-- Total rows: `1645`
-- Benchmarks:
-  - `carried_context_multi_turn_eval_v5`: `736`
-  - `system_steerability_v2`: `507`
-  - `complex_if_single_turn_v5`: `402`
-- Assistant-turn distribution:
-  - `0`: `405`, `1`: `125`, `2`: `162`, `3`: `177`, `4`: `431`
-  - `5`: `157`, `6`: `86`, `7`: `52`, `8`: `22`, `9`: `28`
-- Rubric-count distribution (count -> rows):
-  - `1->23`, `2->60`, `3->91`, `4->128`, `5->152`, `6->209`, `7->229`,
-    `8->191`, `9->191`, `10->86`, `11->66`, `12->63`, `13->44`, `14->53`,
-    `15->14`, `16->16`, `17->12`, `18->6`, `19->4`, `20->7`
-
-## Install
+Requires **Python 3.11+**. Use **`uv`** from this directory.
 
 ```bash
 cd advanced_if
 uv sync
+uv run python -c "import advanced_if; print(advanced_if.load_environment)"
 ```
 
-## Run Eval
+**Dev:** `uv sync --group dev` (Ruff).
 
-From this directory (uses `configs/endpoints.toml` via `endpoints_path = "configs"`):
+## Running evaluations
+
+Run commands from **`advanced_if/`** (the directory that contains this package’s `pyproject.toml`).
+
+### Local
 
 ```bash
-cd advanced_if
-uv sync
-prime eval run configs/eval.toml
+uv run prime eval run configs/debug.toml
 ```
 
-## Config
+Set the API key for the judge client (default `judge_client_config.api_key_var` is `PRIME_API_KEY`). Point TOML at `configs/endpoints.toml` if you use a shared registry (`endpoints_path` in the eval config).
 
-`load_environment(config)` accepts:
+Add your own `configs/eval.toml` by copying a sibling env’s eval TOML shape: `[[eval]]`, `env_id = "advanced_if"`, `env_dir_path = "."`, and `[eval.env_args]` for `EnvironmentConfig` fields.
 
-- `dataset_name` (default `"facebook/AdvancedIF"`)
-- `dataset_split` (default `"train"`)
-- `max_examples` / `seed`
-- `judge_model` / `judge_sampling_args`
-- `judge_client_config` (`verifiers.types.ClientConfig`) — defaults match Prime Inference (`api_key_var=PRIME_API_KEY`, `api_base_url=https://api.pinference.ai/api/v1`)
-- `max_turns` (default `1`; the env is wired as `vf.SingleTurnEnv`, so only one model turn runs)
-- `attach_dataset_stats` (default `true`) — when set, rubric scoring receives `dataset_stats` (Hub split histograms / counts)
+## Environment config
 
-## Notes
+`load_environment(config, **kwargs)` builds an **`EnvironmentConfig`** (`core/config.py`). Dict kwargs are merged the same way as a single mapping.
 
-- Reward requires judge JSON with exactly `coverage`, `faithful`, and `non_redundant` as JSON booleans.
-- Scoring uses `AdvancedIFJudgeRubric`, a subclass of `vf.JudgeRubric`, with Prime-compatible endpoint defaults.
-- The judge client’s `api_key_var` must be set in the process environment (`ensure_keys`); there is no file-based key fallback.
+| Field | Role |
+|------|------|
+| `dataset_name` / `dataset_split` | Hub dataset (default `facebook/AdvancedIF` / `train`) |
+| `max_examples` / `seed` | Subset and shuffle for `build_dataset` |
+| `judge_model` / `judge_sampling_args` | Judge LLM id and sampling kwargs |
+| `judge_client_config` | `verifiers.types.ClientConfig` (defaults: Prime Inference URL + `PRIME_API_KEY`) |
+| `max_turns` | Fixed at `1` in practice (`SingleTurnEnv`) |
+| `attach_dataset_stats` | If true, rubric receives `dataset_stats` from `analyze_dataset` |
+
+The judge client’s `api_key_var` must be present in the process environment (`verifiers` `ensure_keys`); there is no file-based key fallback.
+
+## Dataset snapshot (`train`)
+
+| | |
+|--:|--:|
+| Rows | 1645 |
+| `carried_context_multi_turn_eval_v5` | 736 |
+| `system_steerability_v2` | 507 |
+| `complex_if_single_turn_v5` | 402 |
+
+Rubrics per example range roughly 1–20; full histograms are produced by `analyze_dataset` when `attach_dataset_stats` is enabled.
