@@ -65,7 +65,7 @@ prime eval run configs/eval.toml
 - `judge_model` / `judge_sampling_args`
 - `judge_client_config` (`verifiers.types.ClientConfig`) — defaults match Prime Inference (`api_key_var=PRIME_API_KEY`, `api_base_url=https://api.pinference.ai/api/v1`)
 - `max_turns` (default `1`; the env is wired as `vf.SingleTurnEnv`, so only one model turn runs)
-- `include_dataset_analysis_in_state` (default `true`)
+- `attach_dataset_stats` (default `true`) — when set, rubric scoring receives `dataset_stats` (Hub split histograms / counts)
 
 ## Notes
 

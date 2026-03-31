@@ -78,9 +78,9 @@ class AdvancedIFJudgeRubric(vf.JudgeRubric):
         )
         self.add_reward_func(self.rubric_alignment_reward, weight=1.0)
         self.add_metric(self.rubric_count_metric)
-        if cfg.include_dataset_analysis_in_state:
+        if cfg.attach_dataset_stats:
             self.add_class_object(
-                "dataset_profile",
+                "dataset_stats",
                 analyze_dataset(cfg.dataset_name, cfg.dataset_split),
             )
 

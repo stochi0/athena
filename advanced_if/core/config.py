@@ -18,7 +18,7 @@ class EnvironmentConfig:
     judge_sampling_args: dict[str, Any] | None = None
     judge_client_config: ClientConfig = field(default_factory=ClientConfig)
     max_turns: int = 1
-    include_dataset_analysis_in_state: bool = True
+    attach_dataset_stats: bool = True
 
     @classmethod
     def from_input(
