@@ -76,7 +76,7 @@ class AdvancedIFJudgeRubric(vf.JudgeRubric):
             judge_prompt=JUDGE_PROMPT,
             judge_sampling_args=cfg.judge_sampling_args,
         )
-        self.add_reward_func(self.rubric_alignment_reward, weight=1.0)
+        self.add_reward_func(self.judge_reward, weight=1.0)
         self.add_metric(self.rubric_count_metric)
         if cfg.attach_dataset_stats:
             self.add_class_object(
@@ -84,7 +84,7 @@ class AdvancedIFJudgeRubric(vf.JudgeRubric):
                 analyze_dataset(cfg.dataset_name, cfg.dataset_split),
             )
 
-    async def rubric_alignment_reward(
+    async def judge_reward(
         self,
         judge: Callable[..., Awaitable[str]],
         prompt: Messages,
