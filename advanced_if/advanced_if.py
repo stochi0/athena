@@ -1,7 +1,7 @@
 """Verifiers environment for rubric generation on facebook/AdvancedIF.
 
-Public surface: ``load_environment`` and ``AdvancedIFEnv`` (``vf.MultiTurnEnv``).
-Implementation details live under ``core/`` (same pattern as ``loca_bench_rlm``).
+Public surface: ``load_environment`` and ``AdvancedIFEnv`` (``vf.SingleTurnEnv``).
+Implementation details live under ``core/``.
 """
 
 from __future__ import annotations
@@ -9,14 +9,14 @@ from __future__ import annotations
 from typing import Any
 
 import verifiers as vf
-from verifiers.types import State
 
 from core.config import EnvironmentConfig
 from core.dataset import build_dataset
-from core.evaluation import build_rubric
+from core.rubrics import build_rubric
 
-class AdvancedIFEnv(vf.MultiTurnEnv):
-    """Single rollout turn: model emits rubrics JSON; ``JudgeRubric`` scores vs gold."""
+
+class AdvancedIFEnv(vf.SingleTurnEnv):
+    """One model turn: emit rubrics JSON; ``AdvancedIFJudgeRubric`` scores via LLM judge."""
 
     def __init__(self, config: EnvironmentConfig):
         self.config = config
@@ -27,19 +27,8 @@ class AdvancedIFEnv(vf.MultiTurnEnv):
             dataset=dataset,
             rubric=rubric,
             parser=parser,
-            max_turns=config.max_turns,
             env_id="advanced_if",
         )
-
-    async def env_response(
-        self, messages: vf.Messages, state: State, **kwargs: Any
-    ) -> vf.Messages:
-        state["final_env_response"] = []
-        return []
-
-    @vf.stop
-    async def done_after_first_turn(self, state: State, **kwargs: Any) -> bool:
-        return len(state["trajectory"]) >= 1
 
 
 def load_environment(

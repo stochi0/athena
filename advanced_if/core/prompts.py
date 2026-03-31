@@ -30,8 +30,10 @@ Gold rubrics:
 Candidate rubrics:
 {response}
 
-Return JSON only with keys:
-- "coverage" (boolean): candidate covers the essential gold constraints.
-- "faithful" (boolean): candidate does not introduce major incorrect constraints.
-- "non_redundant" (boolean): candidate list is not overly repetitive.
+Return a single JSON object with exactly these three boolean keys (no markdown, no prose):
+- "coverage": true if the candidate covers the essential constraints from the gold list.
+- "faithful": true if the candidate does not add major incorrect or hallucinated constraints.
+- "non_redundant": true if the candidate list is not overly repetitive vs gold.
+
+Example shape (values are yours to judge): {{"coverage": true, "faithful": true, "non_redundant": false}}
 """

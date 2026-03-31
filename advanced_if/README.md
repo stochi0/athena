@@ -15,12 +15,12 @@ This setup stays within verifiers-native environment/rubric/parser patterns.
 
 ## Layout (same idea as `loca_bench_rlm`)
 
-- `advanced_if.py` — `AdvancedIFEnv(vf.MultiTurnEnv)`, `load_environment`, and `env_id` module for `prime eval`
+- `advanced_if.py` — `AdvancedIFEnv(vf.SingleTurnEnv)`, `load_environment`, and `env_id` module for `prime eval`
 - `core/config.py` — `EnvironmentConfig`
 - `core/dataset.py` — Hub rows, `build_dataset`, `analyze_dataset`
-- `core/evaluation.py` — `JudgeRubric`, reward + metrics
+- `core/rubrics.py` — `AdvancedIFJudgeRubric` (extends `vf.JudgeRubric`), reward + metrics
 - `core/prompts.py` — system/user/judge prompt strings
-- `configs/eval.toml` — smoke eval
+- `configs/debug.toml` — smoke eval (see also `configs/endpoints.toml`)
 - `configs/endpoints.toml` — Prime Inference endpoint registry
 
 ## Dataset Analysis (full split: `facebook/AdvancedIF`, `train`)
@@ -65,11 +65,11 @@ prime eval run configs/eval.toml
 - `judge_model` / `judge_sampling_args`
 - `judge_api_key_var` (default `PRIME_API_KEY`)
 - `judge_base_url` (default `https://api.pinference.ai/api/v1`)
-- `max_turns` (default `1`)
+- `max_turns` (default `1`; the env is wired as `vf.SingleTurnEnv`, so only one model turn runs)
 - `include_dataset_analysis_in_state` (default `true`)
 
 ## Notes
 
-- Reward uses judge JSON fields: `coverage`, `faithful`, `non_redundant`.
-- Judge uses `vf.JudgeRubric` with Prime-compatible endpoint defaults.
+- Reward parses judge JSON for three criteria (with common synonyms, e.g. `faithfulness` for `faithful`).
+- Scoring uses `AdvancedIFJudgeRubric`, a subclass of `vf.JudgeRubric`, with Prime-compatible endpoint defaults.
 - No fallback path: `PRIME_API_KEY` (or your configured `judge_api_key_var`) is required.
