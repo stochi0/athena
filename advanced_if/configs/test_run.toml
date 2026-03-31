@@ -14,6 +14,7 @@ model = "Qwen/Qwen3.5-9B"
 max_steps = 8
 batch_size = 2
 rollouts_per_example = 2
+max_async_level = 4
 env_files = ["secrets.env"]
 
 [[env]]
