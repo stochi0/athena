@@ -1,0 +1,43 @@
+# Minimal RL smoke run for LOCA Bench RLM (Hosted Training).
+# Run from the loca_bench_rlm/ directory (where pyproject.toml lives).
+#
+# Replace YOUR_USERNAME in [[env]].id with your Prime / Hub namespace once the env is published.
+# Optional secrets: add configs/rl/secrets.env (paths relative to this TOML) or use -e KEY / --env-file.
+#
+#   prime rl run configs/rl/test_run.toml
+#
+# To skip W&B, remove [wandb] below. If a repo-level .env sets an inference-only PRIME_API_KEY,
+# you may need to unset it for tunnel-backed runs (see README).
+
+name = "loca-bench-rlm-2ex-test"
+model = "Qwen/Qwen3.5-9B"
+max_steps = 8
+batch_size = 2
+rollouts_per_example = 1
+max_async_level = 4
+env_files = ["secrets.env"]
+
+[[env]]
+id = "stochi0/loca_bench_rlm"
+
+# Same keys as Config (core/config.py); aligned with configs/eval/eval_debug.toml.
+[env.args]
+config_path = "task_configs/debug.json"
+max_examples = 2
+repl_language = "python"
+max_turns = 20
+sub_model = "openai/gpt-4.1-nano"
+sub_llm_max_turns = 12
+code_execution_timeout = 90
+execution_backend = "sandbox"
+sandbox_docker_image = "python:3.11-slim"
+sandbox_cpu_cores = 2
+sandbox_memory_gb = 4
+sandbox_disk_size_gb = 8
+sandbox_gpu_count = 0
+sandbox_timeout_minutes = 30
+
+[wandb]
+project = "loca-bench-rlm"
+entity = "stochi-team"
+name = "qwen3-9b-loca-bench-rlm-smoke"
