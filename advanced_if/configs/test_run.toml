@@ -1,0 +1,32 @@
+# Minimal RL smoke run for AdvancedIF (Hosted Training).
+# Run from the advanced_if/ directory (where pyproject.toml lives).
+#
+# Secrets: copy configs/rl/secrets.env.example → configs/rl/secrets.env and fill keys
+# (or point env_files at another .env). Paths are relative to this TOML file.
+#
+#   cp configs/rl/secrets.env.example configs/rl/secrets.env
+#   prime rl run configs/rl/test_run.toml
+#
+# Override secrets with -e KEY or --env-file. To skip W&B, remove [wandb] below.
+
+name = "advanced-if-2ex-test"
+model = "Qwen/Qwen3.5-9B"
+max_steps = 8
+batch_size = 2
+rollouts_per_example = 2
+env_files = ["secrets.env"]
+
+[[env]]
+id = "stochi0/advanced-if"
+
+# Same keys as EnvironmentConfig (core/config.py); matches smoke eval in configs/debug.toml.
+[env.args]
+dataset_name = "facebook/AdvancedIF"
+dataset_split = "train"
+max_examples = 16
+judge_model = "z-ai/glm-4.7"
+
+[wandb]
+project = "advanced-if"
+entity = "stochi-team"
+name = "qwen3-9b-advanced-if-16ex"
