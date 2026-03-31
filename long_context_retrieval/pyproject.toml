@@ -40,3 +40,7 @@ src = ["core", "scripts", "long_context_retrieval.py"]
 select = ["E", "F", "I", "W"]
 # Prompt-heavy strings exceed a short line width; keep other checks strict.
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# `sys.path` must be set before `core` imports when running `python scripts/build_dataset.py`.
+"scripts/build_dataset.py" = ["E402"]

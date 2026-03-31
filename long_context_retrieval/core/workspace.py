@@ -85,9 +85,7 @@ def build_workspace(
         if src.resolve() != dest.resolve():
             shutil.copy2(src, dest)
     resolved_state_root = (
-        Path(state_root).expanduser().resolve()
-        if state_root
-        else _default_state_root(root)
+        Path(state_root).expanduser().resolve() if state_root else _default_state_root(root)
     )
     return WorkspaceConfig(workspace_root=root, state_root=resolved_state_root)
 
@@ -218,8 +216,7 @@ def init_workspace(paths: WorkspacePaths) -> None:
         register_document(conn, paths, pdf_path)
 
     document_paths = sorted(
-        str(path.relative_to(paths.workspace_root))
-        for path in paths.workspace_root.rglob("*.pdf")
+        str(path.relative_to(paths.workspace_root)) for path in paths.workspace_root.rglob("*.pdf")
     )
     workspace_state_root = paths.workspace_root / config.WORKSPACE_STATE_DIRNAME
     workspace_state_root.mkdir(parents=True, exist_ok=True)
@@ -253,21 +250,22 @@ def init_workspace(paths: WorkspacePaths) -> None:
         "",
         "Important files and stores:",
         "- `.workspace_state/workspace_manifest.json`: exact document inventory and runtime state locations",
+        "- Task prompts and reference answers are not stored under this tree; they arrive via the chat only.",
         "- registry database tables: `documents`, `artifacts`, `artifact_provenance`, `namespaces`",
         "- scratch scope: rollout-local files, SQL DBs, vector collections, and graphs",
         "",
         "Final answer contract:",
-        '{',
+        "{",
         '  "answer": "short answer text",',
         '  "citations": [',
-        '    {',
+        "    {",
         '      "document_id": "doc id",',
         '      "path": "relative/or/absolute path",',
         '      "page": 1,',
         '      "excerpt": "supporting text"',
-        '    }',
-        '  ]',
-        '}',
+        "    }",
+        "  ]",
+        "}",
         "",
         "Documents in workspace:",
     ]
@@ -280,9 +278,7 @@ def init_workspace(paths: WorkspacePaths) -> None:
     conn.close()
 
 
-def register_document(
-    conn: sqlite3.Connection, paths: WorkspacePaths, pdf_path: Path
-) -> None:
+def register_document(conn: sqlite3.Connection, paths: WorkspacePaths, pdf_path: Path) -> None:
     metadata: dict[str, Any] = {}
     reader = PdfReader(str(pdf_path))
     info = reader.metadata or {}
@@ -324,4 +320,3 @@ def register_document(
             json.dumps(metadata, sort_keys=True),
         ),
     )
-

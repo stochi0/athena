@@ -83,23 +83,31 @@ def _resolve_path(path: str, anchor: Path) -> Path:
     return resolved
 
 
+def _staged_hf_dataset_dir(output_root: Path) -> Path | None:
+    """On-disk HF export under output root, if present (prefers tasks/hf, then legacy dataset_hf)."""
+    candidates = [
+        output_root / config.TASK_BUNDLE_SUBDIR / config.TASK_BUNDLE_HF_DIRNAME,
+        output_root / "dataset_hf",
+    ]
+    for candidate in candidates:
+        if candidate.is_dir() and (candidate / "dataset_info.json").is_file():
+            return candidate
+    return None
+
+
 def build_rows(cfg: Config, anchor: Path) -> list[dict[str, Any]]:
     output_root = Path(cfg.dataset_output_dir)
     if not output_root.is_absolute():
         output_root = (anchor / output_root).resolve()
-    staged = output_root / "dataset_hf"
+    staged_hf = _staged_hf_dataset_dir(output_root)
 
     has_workspace = any([cfg.workspace_dir, cfg.pdf_dir, cfg.pdf_paths])
     if cfg.dataset_path:
         path = _resolve_path(cfg.dataset_path, anchor)
         return read_rows(path, anchor)
 
-    if (
-        not has_workspace
-        and staged.is_dir()
-        and (staged / "dataset_info.json").is_file()
-    ):
-        dataset = Dataset.load_from_disk(str(staged))
+    if not has_workspace and staged_hf is not None:
+        dataset = Dataset.load_from_disk(str(staged_hf))
         return prepare_rows(dataset.to_list(), anchor)
 
     workspace_hint = cfg.workspace_dir
@@ -126,9 +134,7 @@ def build_rows(cfg: Config, anchor: Path) -> list[dict[str, Any]]:
     )
     rows = [
         {
-            "prompt": _prepare_prompt_messages(
-                [{"role": "user", "content": config.USER_PROMPT}]
-            ),
+            "prompt": _prepare_prompt_messages([{"role": "user", "content": config.USER_PROMPT}]),
             "answer": json.dumps([""]),
             "info": info,
         }

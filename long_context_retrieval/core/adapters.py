@@ -17,9 +17,7 @@ class SQLiteAdapter:
     def __init__(self) -> None:
         self._connections: dict[tuple[str, str], sqlite3.Connection] = {}
 
-    def _scope_root(
-        self, *, paths: WorkspacePaths, scope: str, rollout_id: str
-    ) -> Path:
+    def _scope_root(self, *, paths: WorkspacePaths, scope: str, rollout_id: str) -> Path:
         if scope == "registry":
             return paths.state_root
         if scope == "state":
@@ -31,19 +29,12 @@ class SQLiteAdapter:
         root.mkdir(parents=True, exist_ok=True)
         return root
 
-    def _db_path(
-        self, *, paths: WorkspacePaths, scope: str, db_name: str, rollout_id: str
-    ) -> Path:
+    def _db_path(self, *, paths: WorkspacePaths, scope: str, db_name: str, rollout_id: str) -> Path:
         if scope == "registry":
             if db_name not in {"registry", "main"}:
-                raise ValueError(
-                    "The registry scope only exposes the registry database."
-                )
+                raise ValueError("The registry scope only exposes the registry database.")
             return paths.registry_db
-        return (
-            self._scope_root(paths=paths, scope=scope, rollout_id=rollout_id)
-            / f"{db_name}.db"
-        )
+        return self._scope_root(paths=paths, scope=scope, rollout_id=rollout_id) / f"{db_name}.db"
 
     def connection(
         self, *, paths: WorkspacePaths, scope: str, db_name: str, rollout_id: str
@@ -74,9 +65,7 @@ class SQLiteAdapter:
         normalized = query.strip().lower()
         if not normalized.startswith("select") and not normalized.startswith("with"):
             raise ValueError("sql_query only allows SELECT or WITH queries.")
-        conn = self.connection(
-            paths=paths, scope=scope, db_name=db_name, rollout_id=rollout_id
-        )
+        conn = self.connection(paths=paths, scope=scope, db_name=db_name, rollout_id=rollout_id)
         rows = conn.execute(query).fetchall()
         return [dict(row) for row in rows]
 
@@ -90,12 +79,8 @@ class SQLiteAdapter:
         db_name: str,
     ) -> dict[str, Any]:
         if scope == "registry":
-            raise ValueError(
-                "sql_write does not allow writes to the registry database."
-            )
-        conn = self.connection(
-            paths=paths, scope=scope, db_name=db_name, rollout_id=rollout_id
-        )
+            raise ValueError("sql_write does not allow writes to the registry database.")
+        conn = self.connection(paths=paths, scope=scope, db_name=db_name, rollout_id=rollout_id)
         cursor = conn.execute(stmt)
         conn.commit()
         return {"ok": True, "rowcount": cursor.rowcount if cursor.rowcount != -1 else 0}
@@ -105,9 +90,7 @@ class VectorAdapter:
     def __init__(self) -> None:
         self._clients: dict[str, chromadb.PersistentClient] = {}
 
-    def _scope_root(
-        self, *, paths: WorkspacePaths, scope: str, rollout_id: str
-    ) -> Path:
+    def _scope_root(self, *, paths: WorkspacePaths, scope: str, rollout_id: str) -> Path:
         if scope == "state":
             root = paths.vector_root
         elif scope == "scratch":
@@ -281,26 +264,17 @@ class GraphAdapter:
             node = params["node"]
             if node not in graph:
                 return []
-            return [
-                {"id": neighbor, **graph.nodes[neighbor]}
-                for neighbor in graph.neighbors(node)
-            ]
+            return [{"id": neighbor, **graph.nodes[neighbor]} for neighbor in graph.neighbors(node)]
         if op == "shortest_path":
-            return nx.shortest_path(
-                graph, source=params["source"], target=params["target"]
-            )
+            return nx.shortest_path(graph, source=params["source"], target=params["target"])
         if op == "subgraph":
             return serialize_graph(graph.subgraph(params.get("nodes", [])).copy())
         if op == "bfs":
-            tree = nx.bfs_tree(
-                graph, params["source"], depth_limit=int(params.get("depth", 1))
-            )
+            tree = nx.bfs_tree(graph, params["source"], depth_limit=int(params.get("depth", 1)))
             return serialize_graph(graph.subgraph(tree.nodes()).copy())
         if op == "dump":
             return serialize_graph(graph)
-        raise ValueError(
-            "graph_query supports: neighbors, shortest_path, subgraph, bfs, dump."
-        )
+        raise ValueError("graph_query supports: neighbors, shortest_path, subgraph, bfs, dump.")
 
     def write(
         self,
@@ -330,11 +304,7 @@ class GraphAdapter:
             target = edge.get("target")
             if source is None or target is None:
                 raise ValueError("Each edge must include 'source' and 'target'.")
-            attrs = {
-                key: value
-                for key, value in edge.items()
-                if key not in {"source", "target"}
-            }
+            attrs = {key: value for key, value in edge.items() if key not in {"source", "target"}}
             graph.add_edge(source, target, **attrs)
         self._save_graph(
             paths=paths,
@@ -361,9 +331,7 @@ class FileAdapter:
     def resolve_path(
         self, *, paths: WorkspacePaths, scope: str, rollout_id: str, rel_path: str
     ) -> Path:
-        root = self.scope_root(
-            paths=paths, scope=scope, rollout_id=rollout_id
-        ).resolve()
+        root = self.scope_root(paths=paths, scope=scope, rollout_id=rollout_id).resolve()
         target = (root / rel_path).resolve()
         if root not in target.parents and target != root:
             raise ValueError("Requested path escapes the allowed scope root.")
@@ -372,16 +340,12 @@ class FileAdapter:
     def list(
         self, *, paths: WorkspacePaths, scope: str, rollout_id: str, rel_path: str
     ) -> list[str]:
-        root = self.resolve_path(
-            paths=paths, scope=scope, rollout_id=rollout_id, rel_path=rel_path
-        )
+        root = self.resolve_path(paths=paths, scope=scope, rollout_id=rollout_id, rel_path=rel_path)
         if root.is_file():
             return [root.name]
         if not root.exists():
             return []
-        return sorted(
-            str(path.relative_to(root)) for path in root.rglob("*") if path.is_file()
-        )
+        return sorted(str(path.relative_to(root)) for path in root.rglob("*") if path.is_file())
 
     def read(
         self,
@@ -392,9 +356,7 @@ class FileAdapter:
         rel_path: str,
         encoding: str,
     ) -> str:
-        path = self.resolve_path(
-            paths=paths, scope=scope, rollout_id=rollout_id, rel_path=rel_path
-        )
+        path = self.resolve_path(paths=paths, scope=scope, rollout_id=rollout_id, rel_path=rel_path)
         if not path.is_file():
             raise FileNotFoundError(f"File not found: {rel_path}")
         return path.read_text(encoding=encoding, errors="replace")
@@ -410,9 +372,7 @@ class FileAdapter:
         overwrite: bool,
         encoding: str,
     ) -> dict[str, Any]:
-        path = self.resolve_path(
-            paths=paths, scope=scope, rollout_id=rollout_id, rel_path=rel_path
-        )
+        path = self.resolve_path(paths=paths, scope=scope, rollout_id=rollout_id, rel_path=rel_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists() and not overwrite:
             raise FileExistsError(f"File already exists: {rel_path}")
@@ -422,9 +382,7 @@ class FileAdapter:
     def mkdir(
         self, *, paths: WorkspacePaths, scope: str, rollout_id: str, rel_path: str
     ) -> dict[str, Any]:
-        path = self.resolve_path(
-            paths=paths, scope=scope, rollout_id=rollout_id, rel_path=rel_path
-        )
+        path = self.resolve_path(paths=paths, scope=scope, rollout_id=rollout_id, rel_path=rel_path)
         path.mkdir(parents=True, exist_ok=True)
         return {"ok": True, "path": str(path)}
 
@@ -437,9 +395,7 @@ class FileAdapter:
         rel_path: str,
         recursive: bool,
     ) -> dict[str, Any]:
-        path = self.resolve_path(
-            paths=paths, scope=scope, rollout_id=rollout_id, rel_path=rel_path
-        )
+        path = self.resolve_path(paths=paths, scope=scope, rollout_id=rollout_id, rel_path=rel_path)
         if not path.exists():
             return {"ok": True, "deleted": False}
         if path.is_dir():
@@ -466,9 +422,7 @@ def serialize_graph(graph: nx.Graph) -> dict[str, Any]:
     return {"nodes": nodes, "edges": edges}
 
 
-def filter_graph_by_edge_types(
-    graph: nx.Graph, edge_types: str | list[str]
-) -> nx.Graph:
+def filter_graph_by_edge_types(graph: nx.Graph, edge_types: str | list[str]) -> nx.Graph:
     if isinstance(edge_types, str):
         wanted = {edge_types}
     else:

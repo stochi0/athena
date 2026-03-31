@@ -39,11 +39,7 @@ class LongContextRetrievalEnv(WorkspaceTools, RLMEnv):
         self._workspace_anchor = (
             workspace_anchor.resolve()
             if workspace_anchor is not None
-            else (
-                Path(cfg.path_anchor).resolve()
-                if cfg.path_anchor
-                else Path.cwd().resolve()
-            )
+            else (Path(cfg.path_anchor).resolve() if cfg.path_anchor else Path.cwd().resolve())
         )
         self._subtool_state_var: contextvars.ContextVar[dict[str, Any] | None] = (
             contextvars.ContextVar("long_context_retrieval_env_subtool_state", default=None)
@@ -77,22 +73,27 @@ class LongContextRetrievalEnv(WorkspaceTools, RLMEnv):
             root_tools=[],
             sub_tools=[],
             sub_llm_max_turns=cfg.sub_llm_max_turns,
-            sub_model=cfg.rlm_model,
-            sub_prompt_verbosity=cfg.sub_prompt_verbosity,
-            root_prompt_verbosity=cfg.root_prompt_verbosity,
+            sub_model=cfg.sub_model,
+            sub_prompt_verbosity=config.SUB_PROMPT_VERBOSITY,
+            root_prompt_verbosity=config.ROOT_PROMPT_VERBOSITY,
             repl_language=cfg.repl_language,
             pip_install_packages=cfg.pip_install_packages,
             code_execution_timeout=cfg.code_execution_timeout,
             max_output_length=cfg.max_output_length,
+            max_sub_llm_parallelism=cfg.max_sub_llm_parallelism,
+            max_startup_wait_seconds=cfg.max_startup_wait_seconds,
+            abort_on_code_timeout=cfg.abort_on_code_timeout,
+            sandbox_docker_image=cfg.sandbox_docker_image,
+            sandbox_cpu_cores=cfg.sandbox_cpu_cores,
+            sandbox_memory_gb=cfg.sandbox_memory_gb,
+            sandbox_disk_size_gb=cfg.sandbox_disk_size_gb,
+            sandbox_gpu_count=cfg.sandbox_gpu_count,
+            sandbox_timeout_minutes=cfg.sandbox_timeout_minutes,
             dataset=dataset,
             rubric=rubric
-            or build_default_rubric(
-                root_tool_names=[tool.__name__ for tool in shared_tools]
-            ),
+            or build_default_rubric(root_tool_names=[tool.__name__ for tool in shared_tools]),
             system_prompt=config.SYSTEM_PROMPT,
             env_id=cfg.env_id,
-            sub_max_completion_tokens=cfg.sub_max_completion_tokens,
-            root_max_completion_tokens=cfg.root_max_completion_tokens,
             **kwargs,
         )
 

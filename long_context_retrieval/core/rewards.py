@@ -28,9 +28,7 @@ async def citation_support(state: vf.State) -> float:
     if not isinstance(citations, list) or not citations:
         return 0.0
 
-    observations = json.dumps(
-        state.get("root_tool_observations", []), sort_keys=True
-    ).lower()
+    observations = json.dumps(state.get("root_tool_observations", []), sort_keys=True).lower()
     supported = 0
     for citation in citations:
         if not isinstance(citation, dict):
@@ -55,9 +53,7 @@ async def grounded_tool_use(state: vf.State) -> float:
         invocations = []
 
     positive_counts = [
-        int(count)
-        for count in tool_calls.values()
-        if isinstance(count, (int, float)) and count > 0
+        int(count) for count in tool_calls.values() if isinstance(count, (int, float)) and count > 0
     ]
     total_calls = sum(positive_counts)
     unique_tools = len(positive_counts)

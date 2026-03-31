@@ -15,9 +15,7 @@ class WorkspaceTools:
 
         state = self._subtool_state_var.get()
         if state is None:
-            raise RuntimeError(
-                "No active rollout state is available for tool execution."
-            )
+            raise RuntimeError("No active rollout state is available for tool execution.")
         return state
 
     def _paths(self, state: dict[str, Any]):

@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Prefer this repo's `core` package over the unrelated PyPI `core` (site-packages is often
+# ordered before the project root when using `uv run`).
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_REPO_ROOT))
+
 import argparse
 import json
 import re
@@ -8,7 +16,6 @@ import time
 from collections import Counter, defaultdict
 from datetime import datetime
 from itertools import combinations
-from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
 
@@ -119,17 +126,9 @@ def parse_arxiv_entries(xml_text: str) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     for entry in root.findall("atom:entry", ATOM_NS):
         arxiv_id_url = entry.findtext("atom:id", default="", namespaces=ATOM_NS)
-        arxiv_id = (
-            arxiv_id_url.rsplit("/abs/", 1)[-1]
-            if "/abs/" in arxiv_id_url
-            else arxiv_id_url
-        )
-        title = normalize_ws(
-            entry.findtext("atom:title", default="", namespaces=ATOM_NS)
-        )
-        summary = normalize_ws(
-            entry.findtext("atom:summary", default="", namespaces=ATOM_NS)
-        )
+        arxiv_id = arxiv_id_url.rsplit("/abs/", 1)[-1] if "/abs/" in arxiv_id_url else arxiv_id_url
+        title = normalize_ws(entry.findtext("atom:title", default="", namespaces=ATOM_NS))
+        summary = normalize_ws(entry.findtext("atom:summary", default="", namespaces=ATOM_NS))
         authors = [
             normalize_ws(author.findtext("atom:name", default="", namespaces=ATOM_NS))
             for author in entry.findall("atom:author", ATOM_NS)
@@ -148,12 +147,8 @@ def parse_arxiv_entries(xml_text: str) -> list[dict[str, Any]]:
                 "title": title,
                 "summary": summary,
                 "authors": authors,
-                "published": entry.findtext(
-                    "atom:published", default="", namespaces=ATOM_NS
-                ),
-                "updated": entry.findtext(
-                    "atom:updated", default="", namespaces=ATOM_NS
-                ),
+                "published": entry.findtext("atom:published", default="", namespaces=ATOM_NS),
+                "updated": entry.findtext("atom:updated", default="", namespaces=ATOM_NS),
                 "pdf_url": pdf_url,
             }
         )
@@ -221,15 +216,13 @@ def build_workspace(output_dir: Path, papers: list[dict[str, Any]]) -> Path:
         download_pdf(paper["pdf_url"], pdf_dir / pdf_name)
 
     metadata_path = workspace_root / "papers.json"
-    metadata_path.write_text(
-        json.dumps(papers, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    metadata_path.write_text(json.dumps(papers, ensure_ascii=False, indent=2), encoding="utf-8")
 
     init_workspace(
         get_paths(
             WorkspaceConfig(
                 workspace_root=workspace_root,
-                    state_root=workspace_root / config.WORKSPACE_STATE_DIRNAME,
+                state_root=workspace_root / config.WORKSPACE_STATE_DIRNAME,
             )
         )
     )
@@ -411,9 +404,7 @@ def add_similarity_pair_task(
         if score > best_score:
             best_score = score
             best_pair = candidate_pair
-        elif (
-            score == best_score and best_pair is not None and candidate_pair < best_pair
-        ):
+        elif score == best_score and best_pair is not None and candidate_pair < best_pair:
             best_pair = candidate_pair
     if not best_pair or best_score < 2:
         return
@@ -492,9 +483,7 @@ def add_keyword_author_count_tasks(
         filtered = [paper for paper in matches if paper["published_date"] > cutoff]
         if len(filtered) < 2:
             continue
-        distinct_authors = sorted(
-            {author for paper in filtered for author in paper["authors"]}
-        )
+        distinct_authors = sorted({author for paper in filtered for author in paper["authors"]})
         if len(distinct_authors) < 2:
             continue
         maybe_add_row(
@@ -622,21 +611,13 @@ def make_rows_for_workspace(
     add_collaboration_hub_task(rows, seen_prompts, prepared, workspace_root)
     add_repeated_author_window_task(rows, seen_prompts, prepared, workspace_root)
     add_similarity_pair_task(rows, seen_prompts, prepared, workspace_root)
-    add_keyword_timeline_tasks(
-        rows, seen_prompts, prepared, workspace_root, max_tasks=3
-    )
-    add_keyword_author_count_tasks(
-        rows, seen_prompts, prepared, workspace_root, max_tasks=2
-    )
-    add_author_threshold_tasks(
-        rows, seen_prompts, prepared, workspace_root, max_tasks=2
-    )
+    add_keyword_timeline_tasks(rows, seen_prompts, prepared, workspace_root, max_tasks=3)
+    add_keyword_author_count_tasks(rows, seen_prompts, prepared, workspace_root, max_tasks=2)
+    add_author_threshold_tasks(rows, seen_prompts, prepared, workspace_root, max_tasks=2)
     if len(rows) < 6:
         add_global_ranking_tasks(rows, seen_prompts, prepared, workspace_root)
     if not rows:
-        raise RuntimeError(
-            "Failed to generate any dataset rows from the paper metadata."
-        )
+        raise RuntimeError("Failed to generate any dataset rows from the paper metadata.")
     return rows
 
 
@@ -660,10 +641,13 @@ def generate_dataset(
     workspace_root = build_workspace(output_dir, papers)
     rows = make_rows_for_workspace(papers, workspace_root)
     dataset = Dataset.from_list(rows)
-    dataset_dir = output_dir / "dataset_hf"
-    dataset.save_to_disk(str(dataset_dir))
 
-    jsonl_path = output_dir / "dataset.jsonl"
+    tasks_dir = output_dir / config.TASK_BUNDLE_SUBDIR
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    hf_dir = tasks_dir / config.TASK_BUNDLE_HF_DIRNAME
+    dataset.save_to_disk(str(hf_dir))
+
+    jsonl_path = tasks_dir / "dataset.jsonl"
     with jsonl_path.open("w", encoding="utf-8") as fh:
         for row in rows:
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
@@ -673,10 +657,11 @@ def generate_dataset(
         "max_papers": max_papers,
         "num_rows": len(rows),
         "workspace_root": str(workspace_root),
-        "dataset_dir": str(dataset_dir),
+        "tasks_dir": str(tasks_dir),
+        "hf_dataset_dir": str(hf_dir),
         "jsonl_path": str(jsonl_path),
     }
-    (output_dir / "manifest.json").write_text(
+    (tasks_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     return dataset
@@ -684,23 +669,20 @@ def generate_dataset(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate an arXiv workspace and dataset for long-context-retrieval.",
+        description=(
+            "Generate an arXiv paper workspace (output-dir/workspace/) and task bundle "
+            "(output-dir/tasks/: dataset.jsonl, hf/, manifest.json)."
+        ),
     )
-    parser.add_argument(
-        "--query", type=str, default="cat:cs.IR", help="arXiv query string."
-    )
-    parser.add_argument(
-        "--max-papers", type=int, default=10, help="Number of papers to fetch."
-    )
+    parser.add_argument("--query", type=str, default="cat:cs.IR", help="arXiv query string.")
+    parser.add_argument("--max-papers", type=int, default=10, help="Number of papers to fetch.")
     parser.add_argument(
         "--output-dir",
         type=str,
         default=f"./{config.CONTEXTS_DIR}",
         help="Output directory.",
     )
-    parser.add_argument(
-        "--batch-size", type=int, default=50, help="arXiv API batch size."
-    )
+    parser.add_argument("--batch-size", type=int, default=50, help="arXiv API batch size.")
     parser.add_argument(
         "--sleep-s", type=float, default=1.0, help="Sleep between arXiv API requests."
     )

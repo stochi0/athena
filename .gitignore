@@ -217,6 +217,7 @@ __marimo__/
 
 # Cursor 
 .cursor/
+.opencode/
 
 # Prime Intellect
 .prime/

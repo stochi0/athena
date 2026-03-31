@@ -1,1 +1,0 @@
-{"prompt":[{"role":"user","content":"find all the common authors across all papers, and also group the papers by all authors listed"}],"answer":"[]","info":{"workspace_dir":"contexts/workspace","task_type":"author_overlap_and_grouping","difficulty":"custom"}}
