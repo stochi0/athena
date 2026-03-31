@@ -1,6 +1,6 @@
 [project]
 name = "long-context-retrieval"
-version = "0.1.2"
+version = "0.1.3"
 description = "RLM environment package built on the published verifiers package"
 tags = ["multi-turn", "tool-use", "rlm", "long-context", "retrieval"]
 readme = "README.md"
@@ -32,7 +32,7 @@ dev = [
 ]
 
 [tool.ruff]
-target-version = "0.1.2"
+target-version = "0.1.3"
 line-length = 100
 src = ["core", "scripts", "long_context_retrieval.py"]
 
