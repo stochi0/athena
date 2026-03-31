@@ -1,5 +1,5 @@
 [project]
-name = "advanced-if-rubric-discovery"
+name = "advanced-if"
 version = "0.1.0"
 description = "Verifiers-native rubric discovery environment over facebook/AdvancedIF trajectories."
 license = "Apache-2.0"
