@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import copy
+import itertools
 import pickle
 import sqlite3
+import types
 from pathlib import Path
 from typing import Any
 
@@ -53,37 +55,35 @@ class SQLiteAdapter:
             self._connections[key] = conn
         return conn
 
-    def query(
+    def execute_sql(
         self,
         *,
         paths: WorkspacePaths,
         rollout_id: str,
-        query: str,
-        scope: str,
-        db_name: str,
-    ) -> list[dict[str, Any]]:
-        normalized = query.strip().lower()
-        if not normalized.startswith("select") and not normalized.startswith("with"):
-            raise ValueError("sql_query only allows SELECT or WITH queries.")
-        conn = self.connection(paths=paths, scope=scope, db_name=db_name, rollout_id=rollout_id)
-        rows = conn.execute(query).fetchall()
-        return [dict(row) for row in rows]
-
-    def write(
-        self,
-        *,
-        paths: WorkspacePaths,
-        rollout_id: str,
-        stmt: str,
+        statement: str,
         scope: str,
         db_name: str,
     ) -> dict[str, Any]:
-        if scope == "registry":
-            raise ValueError("sql_write does not allow writes to the registry database.")
+        """Run one SQLite statement (DDL/DML/DQL). Commits when there is no result row set.
+
+        Python's sqlite3 allows only one statement per `execute`; chain multiple calls if needed.
+        """
         conn = self.connection(paths=paths, scope=scope, db_name=db_name, rollout_id=rollout_id)
-        cursor = conn.execute(stmt)
+        cursor = conn.execute(statement)
+        if cursor.description is not None:
+            rows = [dict(row) for row in cursor.fetchall()]
+            rc = cursor.rowcount
+            return {
+                "rows": rows,
+                "rowcount": rc if rc is not None and rc >= 0 else len(rows),
+            }
         conn.commit()
-        return {"ok": True, "rowcount": cursor.rowcount if cursor.rowcount != -1 else 0}
+        rc = cursor.rowcount
+        return {
+            "ok": True,
+            "rows": None,
+            "rowcount": rc if rc is not None and rc >= 0 else 0,
+        }
 
 
 class VectorAdapter:
@@ -197,6 +197,133 @@ class VectorAdapter:
         target.delete(ids=ids or None, where=where or None)
         return {"ok": True, "collection": collection, "scope": scope}
 
+    def get(
+        self,
+        *,
+        paths: WorkspacePaths,
+        rollout_id: str,
+        scope: str,
+        collection: str,
+        ids_json: str,
+        where_json: str,
+        limit: int | None,
+        offset: int | None,
+        include_embeddings: bool,
+    ) -> dict[str, Any]:
+        ids = ensure_json(ids_json, [], "ids_json")
+        where = ensure_json(where_json, {}, "where_json")
+        if not isinstance(ids, list):
+            raise ValueError("ids_json must decode to a list.")
+        if not isinstance(where, dict):
+            raise ValueError("where_json must decode to an object.")
+        client = self._client(paths=paths, scope=scope, rollout_id=rollout_id)
+        target = client.get_collection(collection)
+        kwargs: dict[str, Any] = {"include": ["metadatas", "documents"]}
+        if include_embeddings:
+            kwargs["include"].append("embeddings")
+        if ids:
+            kwargs["ids"] = ids
+        if where:
+            kwargs["where"] = where
+        if limit is not None:
+            kwargs["limit"] = int(limit)
+        if offset is not None:
+            kwargs["offset"] = int(offset)
+        return dict(target.get(**kwargs))
+
+
+# NetworkX callables exposed via graph_query(op="algo"). Extends fixed op set without arbitrary code exec.
+_NX_ALGO_ALLOWLIST: frozenset[str] = frozenset(
+    {
+        "pagerank",
+        "google_matrix",
+        "hits",
+        "betweenness_centrality",
+        "edge_betweenness_centrality",
+        "closeness_centrality",
+        "degree_centrality",
+        "in_degree_centrality",
+        "out_degree_centrality",
+        "eigenvector_centrality",
+        "katz_centrality",
+        "clustering",
+        "triangles",
+        "average_clustering",
+        "square_clustering",
+        "transitivity",
+        "number_connected_components",
+        "is_connected",
+        "node_connected_component",
+        "connected_components",
+        "average_shortest_path_length",
+        "shortest_path",
+        "shortest_path_length",
+        "all_pairs_shortest_path_length",
+        "all_pairs_shortest_path",
+        "single_source_shortest_path",
+        "single_source_shortest_path_length",
+        "has_path",
+        "density",
+        "diameter",
+        "radius",
+        "center",
+        "periphery",
+        "degree_histogram",
+        "is_tree",
+        "is_forest",
+        "is_directed_acyclic_graph",
+        "topological_sort",
+        "topological_generations",
+        "ancestors",
+        "descendants",
+    }
+)
+
+
+def _jsonify_nx_result(value: Any, *, depth: int = 0, gen_limit: int = 2048) -> Any:
+    if depth > 24:
+        return "<max-depth>"
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, nx.Graph):
+        return serialize_graph(value)
+    if isinstance(value, dict):
+        return {
+            str(k): _jsonify_nx_result(v, depth=depth + 1, gen_limit=gen_limit)
+            for k, v in value.items()
+        }
+    if isinstance(value, tuple):
+        return [_jsonify_nx_result(x, depth=depth + 1, gen_limit=gen_limit) for x in value]
+    if isinstance(value, (list, set)):
+        seq = list(value)
+        if len(seq) > gen_limit:
+            return [
+                _jsonify_nx_result(x, depth=depth + 1, gen_limit=gen_limit)
+                for x in seq[:gen_limit]
+            ] + [f"<truncated: {len(seq) - gen_limit} more items>"]
+        return [_jsonify_nx_result(x, depth=depth + 1, gen_limit=gen_limit) for x in seq]
+    if isinstance(value, types.GeneratorType):
+        return [
+            _jsonify_nx_result(x, depth=depth + 1, gen_limit=gen_limit)
+            for x in itertools.islice(value, gen_limit)
+        ]
+    if hasattr(value, "tolist"):
+        try:
+            return value.tolist()
+        except Exception:
+            pass
+    if hasattr(value, "__iter__") and not isinstance(
+        value, (str, bytes, dict, list, tuple, set, nx.Graph)
+    ):
+        try:
+            return [
+                _jsonify_nx_result(x, depth=depth + 1, gen_limit=gen_limit)
+                for x in itertools.islice(iter(value), gen_limit)
+            ]
+        except TypeError:
+            pass
+    return str(value)
+
 
 class GraphAdapter:
     def _graph_path(
@@ -274,7 +401,27 @@ class GraphAdapter:
             return serialize_graph(graph.subgraph(tree.nodes()).copy())
         if op == "dump":
             return serialize_graph(graph)
-        raise ValueError("graph_query supports: neighbors, shortest_path, subgraph, bfs, dump.")
+        if op == "algo":
+            name = str(params.get("name") or params.get("algorithm", "")).strip()
+            if name not in _NX_ALGO_ALLOWLIST:
+                sample = ", ".join(sorted(_NX_ALGO_ALLOWLIST)[:20])
+                raise ValueError(
+                    f"graph_query(op='algo') unknown algorithm {name!r}. "
+                    f"Use a name from networkx (examples: {sample}, ...)."
+                )
+            fn = getattr(nx, name)
+            if not callable(fn):
+                raise ValueError(f"networkx.{name} is not callable")
+            extra_args = list(params.get("args", []))
+            extra_kw = {str(k): v for k, v in dict(params.get("kwargs", {})).items()}
+            try:
+                raw = fn(graph, *extra_args, **extra_kw)
+            except Exception as exc:
+                raise ValueError(f"networkx.{name}({extra_args!r}, {extra_kw!r}) failed: {exc}") from exc
+            return _jsonify_nx_result(raw)
+        raise ValueError(
+            "graph_query op must be one of: neighbors, shortest_path, subgraph, bfs, dump, algo."
+        )
 
     def write(
         self,

@@ -53,8 +53,6 @@ def _prepare_prompt_messages(raw_prompt: Any) -> list[dict[str, str]]:
     )
     if config.WORKSPACE_CONTEXT_NOTE not in existing_user_content:
         messages.append({"role": "user", "content": config.WORKSPACE_CONTEXT_NOTE})
-    if config.ENV_TIPS not in existing_user_content:
-        messages.append({"role": "user", "content": config.ENV_TIPS})
     return messages
 
 

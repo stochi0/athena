@@ -54,6 +54,7 @@ class LongContextRetrievalEnv(WorkspaceTools, RLMEnv):
             self.sql_write,
             self.vector_list_collections,
             self.vector_search,
+            self.vector_get,
             self.vector_upsert,
             self.vector_delete,
             self.graph_query,

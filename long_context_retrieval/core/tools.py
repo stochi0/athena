@@ -71,14 +71,14 @@ class WorkspaceTools:
         scope: str = "registry",
         db_name: str = "registry",
     ) -> str:
-        """Run a SELECT/WITH query against the registry or a named state/scratch SQLite DB."""
+        """One SQL statement per call (any DQL/DDL/DML); registry/state/scratch. JSON {rows, rowcount} or {ok}."""
         return self._run_json_tool(
             tool_name="sql_query",
             args={"query": query, "scope": scope, "db_name": db_name},
-            callback=lambda state: self._sqlite.query(
+            callback=lambda state: self._sqlite.execute_sql(
                 paths=self._paths(state),
                 rollout_id=self._rollout_id(state),
-                query=query,
+                statement=query,
                 scope=scope,
                 db_name=db_name,
             ),
@@ -90,21 +90,21 @@ class WorkspaceTools:
         scope: str = "scratch",
         db_name: str = "main",
     ) -> str:
-        """Execute a SQL write statement against a named state/scratch SQLite DB."""
+        """Alias: same as sql_query."""
         return self._run_json_tool(
             tool_name="sql_write",
             args={"stmt": stmt, "scope": scope, "db_name": db_name},
-            callback=lambda state: self._sqlite.write(
+            callback=lambda state: self._sqlite.execute_sql(
                 paths=self._paths(state),
                 rollout_id=self._rollout_id(state),
-                stmt=stmt,
+                statement=stmt,
                 scope=scope,
                 db_name=db_name,
             ),
         )
 
     def vector_list_collections(self, scope: str = "scratch") -> str:
-        """List vector collections in the state or scratch namespace."""
+        """List Chroma collections (scope)."""
         return self._run_json_tool(
             tool_name="vector_list_collections",
             args={"scope": scope},
@@ -123,7 +123,7 @@ class WorkspaceTools:
         scope: str = "scratch",
         where_json: str = "{}",
     ) -> str:
-        """Search a named vector collection in state or scratch scope."""
+        """Vector similarity search."""
         return self._run_json_tool(
             tool_name="vector_search",
             args={
@@ -152,7 +152,7 @@ class WorkspaceTools:
         collection: str,
         scope: str = "scratch",
     ) -> str:
-        """Upsert documents into a named vector collection."""
+        """Vector upsert: ids, docs, meta_json."""
         return self._run_json_tool(
             tool_name="vector_upsert",
             args={
@@ -179,7 +179,7 @@ class WorkspaceTools:
         where_json: str = "{}",
         scope: str = "scratch",
     ) -> str:
-        """Delete entries from a named vector collection."""
+        """Delete vector ids from collection."""
         return self._run_json_tool(
             tool_name="vector_delete",
             args={
@@ -198,6 +198,41 @@ class WorkspaceTools:
             ),
         )
 
+    def vector_get(
+        self,
+        collection: str,
+        scope: str = "scratch",
+        ids_json: str = "[]",
+        where_json: str = "{}",
+        limit: int | None = None,
+        offset: int | None = None,
+        include_embeddings: bool = False,
+    ) -> str:
+        """Chroma collection.get (ids/where filter)."""
+        return self._run_json_tool(
+            tool_name="vector_get",
+            args={
+                "collection": collection,
+                "scope": scope,
+                "ids_json": ensure_json(ids_json, [], "ids_json"),
+                "where_json": ensure_json(where_json, {}, "where_json"),
+                "limit": limit,
+                "offset": offset,
+                "include_embeddings": include_embeddings,
+            },
+            callback=lambda state: self._vector.get(
+                paths=self._paths(state),
+                rollout_id=self._rollout_id(state),
+                scope=scope,
+                collection=collection,
+                ids_json=ids_json,
+                where_json=where_json,
+                limit=limit,
+                offset=offset,
+                include_embeddings=include_embeddings,
+            ),
+        )
+
     def graph_query(
         self,
         op: str,
@@ -205,7 +240,7 @@ class WorkspaceTools:
         graph_name: str = "main",
         scope: str = "scratch",
     ) -> str:
-        """Query a named graph in state or scratch scope."""
+        """Graph op + params_json; op=algo → networkx allowlist via params."""
         return self._run_json_tool(
             tool_name="graph_query",
             args={
@@ -231,7 +266,7 @@ class WorkspaceTools:
         graph_name: str = "main",
         scope: str = "scratch",
     ) -> str:
-        """Write nodes and edges to a named graph in state or scratch scope."""
+        """Graph write (nodes_json, edges_json)."""
         return self._run_json_tool(
             tool_name="graph_write",
             args={
@@ -251,7 +286,7 @@ class WorkspaceTools:
         )
 
     def fs_list(self, path: str = ".", scope: str = "workspace") -> str:
-        """List files under a workspace, state, or scratch filesystem scope."""
+        """Dir listing (path, scope=workspace|state|scratch)."""
         return self._run_json_tool(
             tool_name="fs_list",
             args={"path": path, "scope": scope},
@@ -269,7 +304,7 @@ class WorkspaceTools:
         scope: str = "workspace",
         encoding: str = "utf-8",
     ) -> str:
-        """Read a text file from workspace, state, or scratch scope."""
+        """Read text file (path, scope)."""
         state = self._require_active_state()
         result = self._files.read(
             paths=self._paths(state),
@@ -294,7 +329,7 @@ class WorkspaceTools:
         overwrite: bool = False,
         encoding: str = "utf-8",
     ) -> str:
-        """Write a text file into state or scratch scope."""
+        """Write text (scratch/state only)."""
         return self._run_json_tool(
             tool_name="fs_write",
             args={"path": path, "scope": scope, "overwrite": overwrite},
@@ -310,7 +345,7 @@ class WorkspaceTools:
         )
 
     def fs_mkdir(self, path: str, scope: str = "scratch") -> str:
-        """Create a directory inside state or scratch scope."""
+        """Mkdir under scratch/state."""
         return self._run_json_tool(
             tool_name="fs_mkdir",
             args={"path": path, "scope": scope},
@@ -328,7 +363,7 @@ class WorkspaceTools:
         scope: str = "scratch",
         recursive: bool = False,
     ) -> str:
-        """Delete a file or directory inside state or scratch scope."""
+        """Rm file/dir under scratch/state."""
         return self._run_json_tool(
             tool_name="fs_delete",
             args={"path": path, "scope": scope, "recursive": recursive},
@@ -350,7 +385,7 @@ class WorkspaceTools:
         source_document_id: str = "",
         metadata_json: str = "{}",
     ) -> str:
-        """Register a derived artifact in the system registry."""
+        """Insert/update artifacts row."""
         state = self._require_active_state()
         metadata = ensure_json(metadata_json, {}, "metadata_json")
         if not isinstance(metadata, dict):
@@ -399,7 +434,7 @@ class WorkspaceTools:
         section: str = "",
         metadata_json: str = "{}",
     ) -> str:
-        """Register provenance linking an artifact back to a source document."""
+        """Link artifact → source doc (excerpt/page optional)."""
         state = self._require_active_state()
         metadata = ensure_json(metadata_json, {}, "metadata_json")
         if not isinstance(metadata, dict):

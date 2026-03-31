@@ -8,7 +8,7 @@ model = "z-ai/glm-4.7"
 api_base_url = "https://api.pinference.ai/api/v1"
 api_key_var = "PRIME_API_KEY"
 
-num_examples = 8
+num_examples = 1
 rollouts_per_example = 1
 max_concurrent = 16
 save_results = true
@@ -21,7 +21,7 @@ state_columns = ["workspace", "final_answer", "stop_condition"]
 
 [eval.env_args]
 dataset_path = "contexts/tasks/dataset.jsonl"
-max_examples = 8
+max_examples = 1
 
 sub_model = "openai/gpt-4.1-nano"
 repl_language = "python"

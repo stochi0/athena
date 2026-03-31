@@ -92,7 +92,7 @@ Advanced (custom rows): `create_environment(cfg=..., dataset=...)` in `core/envi
 
 ## Tools and answer contract
 
-REPL tools: scoped SQL, vector/graph CRUD, filesystem IO (`workspace` vs `scratch`), artifact helpers — see `core/tools.py`.
+REPL tools: **SQLite** (`sql_query` / `sql_write`: one statement per call, any DQL/DDL/DML on registry or scratch/state DBs), **Chroma** (`vector_search`, `vector_get`, upsert, delete), **NetworkX** (`graph_query` helpers plus `op="algo"` with an allowlisted `networkx` function name), scoped filesystem IO, artifact helpers — see `core/tools.py`.
 
 Final model answer should be JSON:
 
