@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
-import os
 import re
+from collections.abc import Awaitable, Callable
 from typing import Any
 
-from openai import AsyncOpenAI
 import verifiers as vf
 from verifiers.types import Messages, State
+from verifiers.utils.client_utils import resolve_client_config, setup_openai_client
+from verifiers.utils.config_utils import ensure_keys
 
 from core.config import EnvironmentConfig
 from core.dataset import analyze_dataset
@@ -30,58 +31,19 @@ def extract_json_object(text: str) -> dict[str, Any] | None:
     return obj if isinstance(obj, dict) else None
 
 
-def _normalize_key(key: str) -> str:
-    return key.strip().lower().replace(" ", "_").replace("-", "_")
+_JUDGE_KEYS = ("coverage", "faithful", "non_redundant")
 
 
-def _normalize_judge_obj(obj: dict[str, Any]) -> dict[str, Any]:
-    return {_normalize_key(k): v for k, v in obj.items() if isinstance(k, str)}
-
-
-def _coerce_score(value: Any) -> float | None:
-    if isinstance(value, bool):
-        return 1.0 if value else 0.0
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        x = float(value)
-        if 0.0 <= x <= 1.0:
-            return x
-        return 1.0 if x >= 0.5 else 0.0
-    if isinstance(value, str):
-        s = value.strip().lower()
-        if s in ("true", "yes", "1"):
-            return 1.0
-        if s in ("false", "no", "0"):
-            return 0.0
-    return None
-
-
-# Judge may paraphrase keys; map synonym groups to logical criteria.
-_CRITERIA_ALIASES: tuple[tuple[str, ...], ...] = (
-    ("coverage", "covers", "covers_essentials", "essential_coverage"),
-    ("faithful", "faithfulness", "accuracy", "accurate", "factuality"),
-    (
-        "non_redundant",
-        "nonredundant",
-        "not_redundant",
-        "concise",
-        "low_redundancy",
-        "minimal_redundancy",
-    ),
-)
-
-
-def mean_judge_scores(norm: dict[str, Any]) -> float | None:
-    """Return mean in [0, 1] if every criterion is present and coercible, else None."""
+def mean_judge_scores(obj: dict[str, Any]) -> float | None:
+    """Mean in [0, 1] if all three boolean criteria are present, else None."""
     scores: list[float] = []
-    for aliases in _CRITERIA_ALIASES:
-        found: float | None = None
-        for name in aliases:
-            if name in norm:
-                found = _coerce_score(norm[name])
-                break
-        if found is None:
+    for key in _JUDGE_KEYS:
+        if key not in obj:
             return None
-        scores.append(found)
+        value = obj[key]
+        if not isinstance(value, bool):
+            return None
+        scores.append(1.0 if value else 0.0)
     return sum(scores) / len(scores)
 
 
@@ -96,26 +58,23 @@ def parsed_rubric_count(parser: vf.Parser, completion: Messages) -> float:
     return float(len([r for r in rubrics if isinstance(r, str) and r.strip()]))
 
 
+def _require_judge_api_key(config: vf.ClientConfig) -> None:
+    ensure_keys([resolve_client_config(config).api_key_var])
+
+
 class AdvancedIFJudgeRubric(vf.JudgeRubric):
-    """LLM judge plus alignment reward and rubric-count metric (verifiers-native)."""
+    """LLM judge alignment reward plus rubric-count metric."""
 
     def __init__(self, cfg: EnvironmentConfig, parser: vf.Parser | None = None):
-        judge_api_key = os.getenv(cfg.judge_api_key_var, "")
-        if not judge_api_key.strip():
-            raise RuntimeError(
-                f"Missing judge API key in env var '{cfg.judge_api_key_var}'. "
-                "Set it before loading the environment."
-            )
+        _require_judge_api_key(cfg.judge_client_config)
+        judge_client = setup_openai_client(cfg.judge_client_config)
 
         super().__init__(
             parser=parser,
-            judge_client=AsyncOpenAI(
-                api_key=judge_api_key,
-                base_url=cfg.judge_base_url,
-            ),
+            judge_client=judge_client,
             judge_model=cfg.judge_model,
             judge_prompt=JUDGE_PROMPT,
-            judge_sampling_args=cfg.judge_sampling_args or {"temperature": 0.0},
+            judge_sampling_args=cfg.judge_sampling_args,
         )
         self.add_reward_func(self.rubric_alignment_reward, weight=1.0)
         self.add_metric(self.rubric_count_metric)
@@ -127,23 +86,22 @@ class AdvancedIFJudgeRubric(vf.JudgeRubric):
 
     async def rubric_alignment_reward(
         self,
-        judge: Any,
+        judge: Callable[..., Awaitable[str]],
         prompt: Messages,
         completion: Messages,
         answer: str,
         state: State,
-        **kwargs: Any,
+        **_kwargs: Any,
     ) -> float:
         raw = await judge(prompt, completion, answer, state)
         obj = extract_json_object(raw)
         if not obj:
             return 0.0
-        norm = _normalize_judge_obj(obj)
-        score = mean_judge_scores(norm)
+        score = mean_judge_scores(obj)
         return score if score is not None else 0.0
 
     async def rubric_count_metric(
-        self, parser: vf.Parser, completion: Messages, **kwargs: Any
+        self, parser: vf.Parser, completion: Messages, **_kwargs: Any
     ) -> float:
         return parsed_rubric_count(parser, completion)
 

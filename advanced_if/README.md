@@ -63,13 +63,12 @@ prime eval run configs/eval.toml
 - `dataset_split` (default `"train"`)
 - `max_examples` / `seed`
 - `judge_model` / `judge_sampling_args`
-- `judge_api_key_var` (default `PRIME_API_KEY`)
-- `judge_base_url` (default `https://api.pinference.ai/api/v1`)
+- `judge_client_config` (`verifiers.types.ClientConfig`) — defaults match Prime Inference (`api_key_var=PRIME_API_KEY`, `api_base_url=https://api.pinference.ai/api/v1`)
 - `max_turns` (default `1`; the env is wired as `vf.SingleTurnEnv`, so only one model turn runs)
 - `include_dataset_analysis_in_state` (default `true`)
 
 ## Notes
 
-- Reward parses judge JSON for three criteria (with common synonyms, e.g. `faithfulness` for `faithful`).
+- Reward requires judge JSON with exactly `coverage`, `faithful`, and `non_redundant` as JSON booleans.
 - Scoring uses `AdvancedIFJudgeRubric`, a subclass of `vf.JudgeRubric`, with Prime-compatible endpoint defaults.
-- No fallback path: `PRIME_API_KEY` (or your configured `judge_api_key_var`) is required.
+- The judge client’s `api_key_var` must be set in the process environment (`ensure_keys`); there is no file-based key fallback.

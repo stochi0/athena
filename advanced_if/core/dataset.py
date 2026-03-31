@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 from typing import Any
 
+import verifiers as vf
 from datasets import Dataset, load_dataset
-from verifiers.types import Info
+from verifiers.types import Info, RolloutInput
 
 from core.config import EnvironmentConfig
 from core.prompts import SYSTEM_PROMPT, USER_TEMPLATE
@@ -38,28 +39,30 @@ def render_trajectory(messages: list[dict[str, Any]]) -> str:
     return "\n\n".join(blocks)
 
 
-def build_rollout_row(ex: dict[str, Any], idx: int) -> dict[str, Any]:
+def build_rollout_row(ex: dict[str, Any], idx: int) -> RolloutInput:
     history = parse_conversation_history(ex["conversation_history"])
     rubrics = parse_rubrics_from_metadata(ex["prompt_metadata"])
     trajectory = render_trajectory(history)
     benchmark = str(ex.get("benchmark_name", "unknown"))
 
-    return {
-        "prompt": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": USER_TEMPLATE.format(trajectory=trajectory)},
+    return RolloutInput(
+        prompt=[
+            vf.SystemMessage(content=SYSTEM_PROMPT).model_dump(mode="python"),
+            vf.UserMessage(
+                content=USER_TEMPLATE.format(trajectory=trajectory)
+            ).model_dump(mode="python"),
         ],
-        "answer": json.dumps(rubrics, ensure_ascii=False),
-        "task": f"advanced_if::{benchmark}",
-        "example_id": idx,
-        "info": {
+        answer=json.dumps(rubrics, ensure_ascii=False),
+        task=f"advanced_if::{benchmark}",
+        example_id=idx,
+        info={
             "benchmark_name": benchmark,
             "num_messages": len(history),
             "num_rubrics": len(rubrics),
             "trajectory": trajectory,
             "gold_rubrics": rubrics,
         },
-    }
+    )
 
 
 def analyze_dataset(dataset_name: str, dataset_split: str) -> Info:
