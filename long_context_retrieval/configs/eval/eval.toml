@@ -1,4 +1,4 @@
-# Run from `long_context_retrieval/`: uv run prime eval run config/eval/eval.toml --skip-upload
+# Run from `long_context_retrieval/`: uv run prime eval run configs/eval/eval.toml --skip-upload
 
 save_results = true
 endpoints_path = "endpoints.toml"

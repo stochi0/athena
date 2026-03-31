@@ -10,7 +10,6 @@ dependencies = [
     "datasets>=4.0.0",
     "networkx>=3.6.1",
     "pypdf>=6.9.1",
-    "pytest>=9.0.2",
     "python-dotenv>=1.0.0",
     "requests>=2.32.0",
     "verifiers>=0.1.11",
@@ -26,16 +25,18 @@ only-include = [
     "core",
 ]
 
-[tool.verifiers.eval]
-num_examples = 1
-rollouts_per_example = 1
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-pythonpath = ["."]
-
 [dependency-groups]
 dev = [
+    "pytest>=8.0",
     "ruff>=0.15.7",
 ]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["core", "scripts", "long_context_retrieval.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+# Prompt-heavy strings exceed a short line width; keep other checks strict.
+ignore = ["E501"]

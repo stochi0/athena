@@ -7,16 +7,12 @@ from typing import Any
 
 from datasets import Dataset
 
-from .settings import (
-    Config,
-    ENV_TIPS,
-    SYSTEM_PROMPT,
-    USER_PROMPT,
-    WORKSPACE_CONTEXT_NOTE,
-    WORKSPACE_STATE_DIRNAME,
-)
+from . import config
+from .config import Config
 from .types import WorkspaceConfig
 from .workspace import ensure_workspace, get_paths, init_workspace
+
+SYSTEM_PROMPT = config.SYSTEM_PROMPT
 
 __all__ = [
     "SYSTEM_PROMPT",
@@ -50,15 +46,15 @@ def _prepare_prompt_messages(raw_prompt: Any) -> list[dict[str, str]]:
             messages.append({"role": str(role), "content": str(content)})
 
     if not messages:
-        messages = [{"role": "user", "content": USER_PROMPT}]
+        messages = [{"role": "user", "content": config.USER_PROMPT}]
 
     existing_user_content = "\n\n".join(
         message["content"] for message in messages if message["role"] == "user"
     )
-    if WORKSPACE_CONTEXT_NOTE not in existing_user_content:
-        messages.append({"role": "user", "content": WORKSPACE_CONTEXT_NOTE})
-    if ENV_TIPS not in existing_user_content:
-        messages.append({"role": "user", "content": ENV_TIPS})
+    if config.WORKSPACE_CONTEXT_NOTE not in existing_user_content:
+        messages.append({"role": "user", "content": config.WORKSPACE_CONTEXT_NOTE})
+    if config.ENV_TIPS not in existing_user_content:
+        messages.append({"role": "user", "content": config.ENV_TIPS})
     return messages
 
 
@@ -113,7 +109,7 @@ def build_rows(cfg: Config, anchor: Path) -> list[dict[str, Any]]:
             get_paths(
                 WorkspaceConfig(
                     workspace_root=workspace_root,
-                    state_root=workspace_root / WORKSPACE_STATE_DIRNAME,
+                    state_root=workspace_root / config.WORKSPACE_STATE_DIRNAME,
                 )
             )
         )
@@ -131,7 +127,7 @@ def build_rows(cfg: Config, anchor: Path) -> list[dict[str, Any]]:
     rows = [
         {
             "prompt": _prepare_prompt_messages(
-                [{"role": "user", "content": USER_PROMPT}]
+                [{"role": "user", "content": config.USER_PROMPT}]
             ),
             "answer": json.dumps([""]),
             "info": info,

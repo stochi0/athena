@@ -12,10 +12,10 @@ from pathlib import Path
 from typing import Any
 
 import verifiers as vf
-
+from core.config import Config
 from core.context_builder import build_dataset
 from core.environment import create_environment
-from core.settings import Config
+
 
 def load_environment(
     config: Config | dict[str, Any] | None = None,

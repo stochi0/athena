@@ -1,5 +1,5 @@
 # Minimal RL run (2 examples) — smoke test for Hosted Training.
-#   prime rl run config/rl/long-context-retrieval.toml -e WANDB_API_KEY -e PRIME_API_KEY -e OPENAI_API_KEY
+#   prime rl run configs/rl/long-context-retrieval.toml -e WANDB_API_KEY -e PRIME_API_KEY -e OPENAI_API_KEY
 
 name = "long-context-retrieval-2ex-test"
 model = "Qwen/Qwen3-30B-A3B-Instruct-2507"

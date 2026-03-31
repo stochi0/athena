@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import sys
 import time
 from collections import Counter, defaultdict
 from datetime import datetime
@@ -14,20 +13,10 @@ from typing import Any
 from xml.etree import ElementTree as ET
 
 import requests
+from core import config
+from core.types import WorkspaceConfig
+from core.workspace import get_paths, init_workspace
 from datasets import Dataset
-
-try:
-    from core.settings import CONTEXTS_DIR, WORKSPACE_STATE_DIRNAME
-    from core.types import WorkspaceConfig
-    from core.workspace import get_paths, init_workspace
-except ModuleNotFoundError:
-    PROJECT_ROOT = Path(__file__).resolve().parents[1]
-    if str(PROJECT_ROOT) not in sys.path:
-        sys.path.insert(0, str(PROJECT_ROOT))
-    from core.settings import CONTEXTS_DIR, WORKSPACE_STATE_DIRNAME
-    from core.types import WorkspaceConfig
-    from core.workspace import get_paths, init_workspace
-
 
 ARXIV_API = "https://export.arxiv.org/api/query"
 ATOM_NS = {
@@ -240,7 +229,7 @@ def build_workspace(output_dir: Path, papers: list[dict[str, Any]]) -> Path:
         get_paths(
             WorkspaceConfig(
                 workspace_root=workspace_root,
-                state_root=workspace_root / WORKSPACE_STATE_DIRNAME,
+                    state_root=workspace_root / config.WORKSPACE_STATE_DIRNAME,
             )
         )
     )
@@ -706,7 +695,7 @@ def main() -> None:
     parser.add_argument(
         "--output-dir",
         type=str,
-        default=f"./{CONTEXTS_DIR}",
+        default=f"./{config.CONTEXTS_DIR}",
         help="Output directory.",
     )
     parser.add_argument(

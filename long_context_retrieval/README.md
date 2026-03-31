@@ -23,17 +23,17 @@ uv sync
 
 ```bash
 cd long_context_retrieval
-uv run prime eval run config/eval/eval.toml --skip-upload
+uv run prime eval run configs/eval/eval.toml --skip-upload
 ```
 
 ### Hosted RL (2-example smoke test)
 
 1. Push the environment to the Hub.
-2. In `config/rl/long-context-retrieval.toml`, set `[[env]].id` to your Hub env.
+2. In `configs/rl/long-context-retrieval.toml`, set `[[env]].id` to your Hub env.
 3. Start the run:
 
 ```bash
-prime rl run config/rl/long-context-retrieval.toml -e WANDB_API_KEY -e OPENAI_API_KEY
+prime rl run configs/rl/long-context-retrieval.toml -e WANDB_API_KEY -e OPENAI_API_KEY
 ```
 
 ## Workspace Model
@@ -146,7 +146,7 @@ from datasets import Dataset
 
 from core.environment import create_environment
 from core.rewards import build_default_rubric
-from core.settings import Config
+from core.config import Config
 
 dataset = Dataset.from_list(
     [
@@ -210,7 +210,7 @@ prime env push --path .
 Run eval:
 
 ```bash
-uv run prime eval run config/eval/eval.toml --skip-upload
+uv run prime eval run configs/eval/eval.toml --skip-upload
 ```
 
-The environment id is `long_context_retrieval`, and the hosted RL config follows the same `config/rl/*.toml` pattern as `discover_gsm8k`.
+The environment id is `long_context_retrieval`, and the hosted RL config follows the `configs/rl/*.toml` pattern used in sibling environments.

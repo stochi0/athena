@@ -1233,7 +1233,6 @@ dependencies = [
     { name = "datasets" },
     { name = "networkx" },
     { name = "pypdf" },
-    { name = "pytest" },
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "verifiers" },
@@ -1241,6 +1240,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pytest" },
     { name = "ruff" },
 ]
 
@@ -1250,14 +1250,16 @@ requires-dist = [
     { name = "datasets", specifier = ">=4.0.0" },
     { name = "networkx", specifier = ">=3.6.1" },
     { name = "pypdf", specifier = ">=6.9.1" },
-    { name = "pytest", specifier = ">=9.0.2" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "requests", specifier = ">=2.32.0" },
     { name = "verifiers", specifier = ">=0.1.11" },
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "ruff", specifier = ">=0.15.7" }]
+dev = [
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "ruff", specifier = ">=0.15.7" },
+]
 
 [[package]]
 name = "markdown-it-py"

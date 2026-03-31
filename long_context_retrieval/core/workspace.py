@@ -8,31 +8,23 @@ from typing import Any
 
 from pypdf import PdfReader
 
-from .settings import (
-    ARTIFACTS_DIRNAME,
-    GRAPH_DIRNAME,
-    REGISTRY_DB,
-    SCRATCH_DIRNAME,
-    SQL_DIRNAME,
-    VECTOR_DIRNAME,
-    WORKSPACE_STATE_DIRNAME,
-)
+from . import config
 from .types import WorkspaceConfig, WorkspacePaths, WorkspaceState
 from .utils import stable_document_id
 
 
-def get_paths(config: WorkspaceConfig) -> WorkspacePaths:
-    state_root = config.state_root.resolve()
-    workspace_root = config.workspace_root.resolve()
+def get_paths(workspace_config: WorkspaceConfig) -> WorkspacePaths:
+    state_root = workspace_config.state_root.resolve()
+    workspace_root = workspace_config.workspace_root.resolve()
     return WorkspacePaths(
         workspace_root=workspace_root,
         state_root=state_root,
-        registry_db=state_root / REGISTRY_DB,
-        vector_root=state_root / VECTOR_DIRNAME,
-        graph_root=state_root / GRAPH_DIRNAME,
-        sql_root=state_root / SQL_DIRNAME,
-        artifacts_root=state_root / ARTIFACTS_DIRNAME,
-        scratch_root=state_root / SCRATCH_DIRNAME,
+        registry_db=state_root / config.REGISTRY_DB,
+        vector_root=state_root / config.VECTOR_DIRNAME,
+        graph_root=state_root / config.GRAPH_DIRNAME,
+        sql_root=state_root / config.SQL_DIRNAME,
+        artifacts_root=state_root / config.ARTIFACTS_DIRNAME,
+        scratch_root=state_root / config.SCRATCH_DIRNAME,
     )
 
 
@@ -67,7 +59,7 @@ def get_paths_from_workspace_state(workspace: WorkspaceState | dict[str, Any]) -
 
 
 def _default_state_root(workspace_root: Path) -> Path:
-    return workspace_root / WORKSPACE_STATE_DIRNAME
+    return workspace_root / config.WORKSPACE_STATE_DIRNAME
 
 
 def build_workspace(
@@ -229,7 +221,7 @@ def init_workspace(paths: WorkspacePaths) -> None:
         str(path.relative_to(paths.workspace_root))
         for path in paths.workspace_root.rglob("*.pdf")
     )
-    workspace_state_root = paths.workspace_root / WORKSPACE_STATE_DIRNAME
+    workspace_state_root = paths.workspace_root / config.WORKSPACE_STATE_DIRNAME
     workspace_state_root.mkdir(parents=True, exist_ok=True)
     manifest_path = workspace_state_root / "workspace_manifest.json"
     manifest = {

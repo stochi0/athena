@@ -9,10 +9,11 @@ from datasets import Dataset
 from dotenv import load_dotenv
 from verifiers.envs.experimental.rlm_env import RLMEnv
 
+from . import config
 from .adapters import FileAdapter, GraphAdapter, SQLiteAdapter, VectorAdapter
+from .config import Config
 from .context_builder import prepare_rows
 from .rewards import build_default_rubric
-from .settings import Config, SYSTEM_PROMPT
 from .tools import WorkspaceTools
 from .workspace import (
     build_workspace_state,
@@ -88,7 +89,7 @@ class LongContextRetrievalEnv(WorkspaceTools, RLMEnv):
             or build_default_rubric(
                 root_tool_names=[tool.__name__ for tool in shared_tools]
             ),
-            system_prompt=SYSTEM_PROMPT,
+            system_prompt=config.SYSTEM_PROMPT,
             env_id=cfg.env_id,
             sub_max_completion_tokens=cfg.sub_max_completion_tokens,
             root_max_completion_tokens=cfg.root_max_completion_tokens,

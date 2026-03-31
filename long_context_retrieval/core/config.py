@@ -23,9 +23,7 @@ MAX_OUTPUT_LENGTH = 8192
 MAX_TURNS = 200
 SUB_LLM_MAX_TURNS = 60
 ENV_ID = "long_context_retrieval"
-USER_PROMPT = (
-    "Answer the question using the research-paper workspace and provide citations."
-)
+USER_PROMPT = "Answer the question using the research-paper workspace and provide citations."
 
 WORKSPACE_CONTEXT_NOTE = dedent(
     """
@@ -167,7 +165,7 @@ class Config:
     env_id: str = ENV_ID
 
     @classmethod
-    def from_input(cls, cfg: Config | dict[str, Any] | None) -> Config:
+    def from_input(cls, cfg: "Config | dict[str, Any] | None") -> "Config":
         if cfg is None:
             return cls()
         if isinstance(cfg, cls):
@@ -198,3 +196,29 @@ class Config:
             "workspace_state_root": self.workspace_state_root,
             "env_id": self.env_id,
         }
+
+
+__all__ = [
+    "Config",
+    "CONTEXTS_DIR",
+    "WORKSPACE_STATE_DIRNAME",
+    "REGISTRY_DB",
+    "VECTOR_DIRNAME",
+    "GRAPH_DIRNAME",
+    "SQL_DIRNAME",
+    "ARTIFACTS_DIRNAME",
+    "SCRATCH_DIRNAME",
+    "ROOT_PROMPT_VERBOSITY",
+    "SUB_PROMPT_VERBOSITY",
+    "REPL_LANGUAGE",
+    "PIP_INSTALL_PACKAGES",
+    "CODE_EXECUTION_TIMEOUT",
+    "MAX_OUTPUT_LENGTH",
+    "MAX_TURNS",
+    "SUB_LLM_MAX_TURNS",
+    "ENV_ID",
+    "USER_PROMPT",
+    "WORKSPACE_CONTEXT_NOTE",
+    "ENV_TIPS",
+    "SYSTEM_PROMPT",
+]
