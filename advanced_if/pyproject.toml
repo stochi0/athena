@@ -15,7 +15,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 only-include = [
-    "advanced_if_env.py",
+    "advanced_if.py",
+    "core",
 ]
 
 [dependency-groups]

@@ -13,6 +13,16 @@ conversation trajectories in `facebook/AdvancedIF`.
 
 This setup stays within verifiers-native environment/rubric/parser patterns.
 
+## Layout (same idea as `loca_bench_rlm`)
+
+- `advanced_if.py` — `AdvancedIFEnv(vf.MultiTurnEnv)`, `load_environment`, and `env_id` module for `prime eval`
+- `core/config.py` — `EnvironmentConfig`
+- `core/dataset.py` — Hub rows, `build_dataset`, `analyze_dataset`
+- `core/evaluation.py` — `JudgeRubric`, reward + metrics
+- `core/prompts.py` — system/user/judge prompt strings
+- `configs/eval.toml` — smoke eval
+- `configs/endpoints.toml` — Prime Inference endpoint registry
+
 ## Dataset Analysis (full split: `facebook/AdvancedIF`, `train`)
 
 - Total rows: `1645`
@@ -37,10 +47,12 @@ uv sync
 
 ## Run Eval
 
+From this directory (uses `configs/endpoints.toml` via `endpoints_path = "configs"`):
+
 ```bash
-uv run prime eval run advanced-if-rubric-discovery \
-  -m gpt-4.1-mini \
-  -a '{"max_examples": 20, "judge_model": "gpt-4.1-mini"}'
+cd advanced_if
+uv sync
+prime eval run configs/eval.toml
 ```
 
 ## Config
@@ -59,5 +71,5 @@ uv run prime eval run advanced-if-rubric-discovery \
 ## Notes
 
 - Reward uses judge JSON fields: `coverage`, `faithful`, `non_redundant`.
-- Judge calls are resolved through verifiers client config (`ClientConfig` + `resolve_client`)
-  and default to Prime Inference via `PRIME_API_KEY`.
+- Judge uses `vf.JudgeRubric` with Prime-compatible endpoint defaults.
+- No fallback path: `PRIME_API_KEY` (or your configured `judge_api_key_var`) is required.
