@@ -9,7 +9,7 @@ rollouts_per_example = 1
 # env_file = ["secrets.env"]
 
 [[env]]
-id = "YOUR_USERNAME/long_context_retrieval"
+id = "YOUR_USERNAME/long-context-retrieval"
 
 # Same scope as `lhaw` / `configs/eval/eval.toml` [eval.env_args]; extra RLM kwargs pass through.
 [env.args]

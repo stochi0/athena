@@ -25,7 +25,7 @@ CODE_EXECUTION_TIMEOUT = 180
 MAX_OUTPUT_LENGTH = 8192
 MAX_TURNS = 200
 SUB_LLM_MAX_TURNS = 60
-ENV_ID = "long_context_retrieval"
+ENV_ID = "long-context-retrieval"
 USER_PROMPT = "Answer from the PDF workspace; ground claims and cite."
 
 # Single user appendix (one message) to avoid duplicate instructions vs system prompt.

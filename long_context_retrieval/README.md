@@ -2,7 +2,7 @@
 
 Verifiers **RLM** environment for question answering over one or more research-paper PDFs in a local workspace. The root model uses a Python REPL with SQL (registry), vectors, graphs, scoped filesystem tools, artifact registration, and `llm_batch()` for delegation.
 
-**Environment ID:** `long_context_retrieval`
+**Environment ID (Prime / verifiers / Hub):** `long-context-retrieval` — matches `pyproject.toml` `[project].name`. Verifiers still imports the module `long_context_retrieval` (hyphens map to underscores).
 
 ## What this environment does
 
@@ -51,13 +51,13 @@ Set the API key expected by the TOML (commonly `PRIME_API_KEY` and `OPENAI_API_K
 ### CLI (`env_id`)
 
 ```bash
-prime eval run long_context_retrieval -a '{"dataset_path": "contexts/tasks/dataset.jsonl", "max_examples": 2}'
+prime eval run long-context-retrieval -a '{"dataset_path": "contexts/tasks/dataset.jsonl", "max_examples": 2}'
 ```
 
 ### Hosted RL (smoke)
 
 1. Push the environment: `prime env push --path .`
-2. Set `[[env]].id` in `configs/rl/long-context-retrieval.toml` to your Hub slug.
+2. Set `[[env]].id` in `configs/rl/long-context-retrieval.toml` to your Hub slug (e.g. `YOUR_USERNAME/long-context-retrieval`).
 3. Run: `prime rl run configs/rl/long-context-retrieval.toml -e WANDB_API_KEY -e OPENAI_API_KEY`
 
 ## On-disk layout (`build_dataset.py`)
@@ -128,3 +128,5 @@ prime env push --path .
 ```
 
 PyPI distribution name: **`long-context-retrieval`**. After install, `import long_context_retrieval` (module `long_context_retrieval.py` + `core/` in the wheel per Hatch `only-include`).
+
+If **Environments Hub** lists both `long-context-retrieval` and `long_context_retrieval`, the latter usually came from older eval configs or a mismatched `env_id`. Use the hyphenated name everywhere (this repo now does); you can remove the stray underscore entry from the Hub UI if you no longer need it.

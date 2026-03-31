@@ -15,7 +15,7 @@ save_results = true
 debug = false
 
 [[eval]]
-env_id = "long_context_retrieval"
+env_id = "long-context-retrieval"
 env_dir_path = "."
 state_columns = ["workspace", "final_answer", "stop_condition"]
 
