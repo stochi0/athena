@@ -1,7 +1,5 @@
-# Multi-turn AdvancedIF: tool feedback = one violated gold criterion.
-# Tuned like lhaw `heavy.toml` / long_context `eval.toml`: high concurrency, larger slice,
-# stronger sandbox hints for hosted Prime (this env is API-only locally; keys stay in env_args).
-# From advanced_if/: export PRIME_API_KEY; uv run prime eval run configs/refine_one_violation.toml
+# RLM AdvancedIF: partial judge tool returns one violated gold criterion.
+# From advanced_if/: export PRIME_API_KEY; uv run prime eval run configs/eval_one_violation.toml
 
 endpoints_path = "."
 
@@ -16,7 +14,7 @@ save_results = true
 debug = false
 
 [[eval]]
-env_id = "advanced_if_refine"
+env_id = "advanced_if"
 env_dir_path = "."
 
 [eval.sampling_args]
@@ -38,7 +36,13 @@ sandbox_memory_gb = 8
 sandbox_disk_size_gb = 20
 sandbox_gpu_count = 0
 sandbox_timeout_minutes = 45
-sandbox_labels = ["advanced-if", "advanced-if-refine", "one-violation", "eval-fast"]
+repl_language = "python"
+sub_model = "openai/gpt-4.1-mini"
+sub_llm_max_turns = 12
+max_sub_llm_parallelism = 8
+code_execution_timeout = 180
+max_startup_wait_seconds = 180
+sandbox_labels = ["advanced-if", "rlm", "one-violation", "eval-fast"]
 
 [eval.env_args.judge_sampling_args]
 temperature = 0.3

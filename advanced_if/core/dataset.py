@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import re
+import shutil
+from pathlib import Path
 from typing import Any
 
 import verifiers as vf
@@ -8,7 +11,8 @@ from datasets import Dataset, load_dataset
 from verifiers.types import Info, RolloutInput
 
 from core.config import EnvironmentConfig
-from core.prompts import SYSTEM_PROMPT, USER_TEMPLATE
+from core.prompts import RLM_TASK_PROMPT
+from core.trajectory_files import materialize_trajectory_dir
 
 
 def parse_conversation_history(raw: str) -> list[dict[str, Any]]:
@@ -28,17 +32,6 @@ def parse_rubrics_from_metadata(raw: str) -> list[str]:
     return rubrics
 
 
-def render_trajectory(messages: list[dict[str, Any]]) -> str:
-    blocks: list[str] = []
-    for m in messages:
-        role = str(m.get("role", ""))
-        content = m.get("content", "")
-        if isinstance(content, list):
-            content = str(content)
-        blocks.append(f"[{role}]\n{content}")
-    return "\n\n".join(blocks)
-
-
 def parse_gold_rubrics_answer(answer: str) -> list[str]:
     """Parse rollout ``answer`` (JSON list of strings). Used for judges/tools; not shown to the policy."""
     try:
@@ -50,24 +43,45 @@ def parse_gold_rubrics_answer(answer: str) -> list[str]:
     return data
 
 
-def build_rollout_row(ex: dict[str, Any], idx: int) -> RolloutInput:
+def _default_context_root() -> Path:
+    return Path(__file__).resolve().parent.parent / "contexts" / "advanced_if_rlm"
+
+
+def _safe_benchmark(name: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9_.-]+", "_", name.strip())[:48] or "unknown"
+
+
+def build_rollout_row(ex: dict[str, Any], idx: int, cfg: EnvironmentConfig) -> RolloutInput:
     history = parse_conversation_history(ex["conversation_history"])
     rubrics = parse_rubrics_from_metadata(ex["prompt_metadata"])
-    trajectory = render_trajectory(history)
     benchmark = str(ex.get("benchmark_name", "unknown"))
 
+    cache_root = (
+        Path(cfg.context_parent_dir).expanduser().resolve()
+        if cfg.context_parent_dir
+        else _default_context_root()
+    )
+    cache_root.mkdir(parents=True, exist_ok=True)
+    ws_name = f"{idx:06d}_{_safe_benchmark(benchmark)}"
+    ws = cache_root / ws_name
+    if ws.exists():
+        shutil.rmtree(ws)
+    ws.mkdir(parents=True)
+    materialize_trajectory_dir(ws, history)
+
+    if cfg.feedback_mode == "one_violation":
+        channel = "one violated gold criterion (or an all-clear) per call"
+    else:
+        channel = "aggregate score only (fraction of gold criteria covered)"
+
+    user_content = RLM_TASK_PROMPT.format(feedback_channel=channel)
+
     return RolloutInput(
-        prompt=[
-            vf.SystemMessage(content=SYSTEM_PROMPT).model_dump(mode="python"),
-            vf.UserMessage(
-                content=USER_TEMPLATE.format(trajectory=trajectory)
-            ).model_dump(mode="python"),
-        ],
+        prompt=[vf.UserMessage(content=user_content).model_dump(mode="python")],
         answer=json.dumps(rubrics, ensure_ascii=False),
         task=f"advanced_if::{benchmark}",
         example_id=idx,
-        # Only non-sensitive fields: gold rubrics live in ``answer`` for scoring / judge.
-        info={"trajectory": trajectory},
+        info={"context_dir": str(ws.resolve())},
     )
 
 
@@ -136,5 +150,5 @@ def build_dataset(cfg: EnvironmentConfig) -> Dataset:
     if cfg.max_examples is not None and cfg.max_examples > 0:
         ds = ds.shuffle(seed=cfg.seed).select(range(min(cfg.max_examples, len(ds))))
 
-    rollout_rows = [build_rollout_row(ex, idx) for idx, ex in enumerate(ds)]
+    rollout_rows = [build_rollout_row(ex, idx, cfg) for idx, ex in enumerate(ds)]
     return Dataset.from_list(rollout_rows)

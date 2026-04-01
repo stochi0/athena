@@ -7,7 +7,7 @@ from typing import Any
 from openai import APIError, APITimeoutError, AsyncOpenAI, RateLimitError
 from verifiers.utils.async_utils import maybe_await
 
-from core.refine_prompts import PER_CRITERION_JUDGE_PROMPT
+from core.prompts import PER_CRITERION_JUDGE_PROMPT
 
 
 def extract_json_object(text: str) -> dict[str, Any] | None:

@@ -26,6 +26,9 @@ dataset_name = "facebook/AdvancedIF"
 dataset_split = "train"
 max_examples = 16
 judge_model = "z-ai/glm-4.7"
+feedback_mode = "score_only"
+max_turns = 64
+repl_language = "python"
 
 [wandb]
 project = "advanced-if"

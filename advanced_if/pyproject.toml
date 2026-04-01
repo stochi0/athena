@@ -1,7 +1,7 @@
 [project]
 name = "advanced-if"
 version = "0.1.1"
-description = "Verifiers-native rubric discovery environment over facebook/AdvancedIF trajectories."
+description = "AdvancedIF rubric induction via verifiers RLMEnv (file-backed trajectories, partial judge tool)."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"
@@ -9,8 +9,7 @@ tags = [
     "advanced-if",
     "verifiers",
     "datasets",
-    "single-turn",
-    "multi-turn",
+    "rlm",
     "rubric",
     "judge",
     "partial-feedback",
@@ -28,7 +27,6 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 only-include = [
     "advanced_if.py",
-    "advanced_if_refine.py",
     "core",
 ]
 

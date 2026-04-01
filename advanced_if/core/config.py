@@ -8,7 +8,7 @@ from verifiers.types import ClientConfig
 
 @dataclass(frozen=True)
 class EnvironmentConfig:
-    """Configuration for the AdvancedIF rubric-generation environment."""
+    """Configuration for AdvancedIF over ``RLMEnv`` (filesystem trajectory + optional partial judge tool)."""
 
     dataset_name: str = "facebook/AdvancedIF"
     dataset_split: str = "train"
@@ -17,8 +17,12 @@ class EnvironmentConfig:
     judge_model: str = "gpt-4.1-mini"
     judge_sampling_args: dict[str, Any] | None = None
     judge_client_config: ClientConfig = field(default_factory=ClientConfig)
-    max_turns: int = 1
+    # RLM root max turns (separate from Prime eval worker settings in TOML).
+    max_turns: int = 64
     attach_dataset_stats: bool = True
+    feedback_mode: str = "score_only"
+    # If None, materialized trajectories go under ``<package>/contexts/advanced_if_rlm/``.
+    context_parent_dir: str | None = None
 
     @classmethod
     def from_input(
