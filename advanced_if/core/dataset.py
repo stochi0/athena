@@ -39,6 +39,17 @@ def render_trajectory(messages: list[dict[str, Any]]) -> str:
     return "\n\n".join(blocks)
 
 
+def parse_gold_rubrics_answer(answer: str) -> list[str]:
+    """Parse rollout ``answer`` (JSON list of strings). Used for judges/tools; not shown to the policy."""
+    try:
+        data = json.loads(answer)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(data, list) or not all(isinstance(x, str) for x in data):
+        return []
+    return data
+
+
 def build_rollout_row(ex: dict[str, Any], idx: int) -> RolloutInput:
     history = parse_conversation_history(ex["conversation_history"])
     rubrics = parse_rubrics_from_metadata(ex["prompt_metadata"])
@@ -55,13 +66,8 @@ def build_rollout_row(ex: dict[str, Any], idx: int) -> RolloutInput:
         answer=json.dumps(rubrics, ensure_ascii=False),
         task=f"advanced_if::{benchmark}",
         example_id=idx,
-        info={
-            "benchmark_name": benchmark,
-            "num_messages": len(history),
-            "num_rubrics": len(rubrics),
-            "trajectory": trajectory,
-            "gold_rubrics": rubrics,
-        },
+        # Only non-sensitive fields: gold rubrics live in ``answer`` for scoring / judge.
+        info={"trajectory": trajectory},
     )
 
 

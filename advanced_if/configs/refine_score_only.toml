@@ -1,0 +1,43 @@
+# Multi-turn AdvancedIF: tool feedback = aggregate score only (judge uses full rubric internally).
+# Same tuning as refine_one_violation.toml (concurrency, slice, sandbox, judge sampling).
+# From advanced_if/: export PRIME_API_KEY; uv run prime eval run configs/refine_score_only.toml
+
+endpoints_path = "."
+
+model = "openai/gpt-4.1-mini"
+api_base_url = "https://api.pinference.ai/api/v1"
+api_key_var = "PRIME_API_KEY"
+
+num_examples = 16
+rollouts_per_example = 1
+max_concurrent = 32
+save_results = true
+debug = false
+
+[[eval]]
+env_id = "advanced_if_refine"
+env_dir_path = "."
+
+[eval.sampling_args]
+temperature = 0.2
+
+[eval.env_args]
+dataset_name = "facebook/AdvancedIF"
+dataset_split = "train"
+max_examples = 16
+seed = 42
+judge_model = "z-ai/glm-4.7"
+feedback_mode = "score_only"
+max_turns = 256
+attach_dataset_stats = false
+
+sandbox_docker_image = "python:3.11-slim"
+sandbox_cpu_cores = 4
+sandbox_memory_gb = 8
+sandbox_disk_size_gb = 20
+sandbox_gpu_count = 0
+sandbox_timeout_minutes = 45
+sandbox_labels = ["advanced-if", "advanced-if-refine", "score-only", "eval-fast"]
+
+[eval.env_args.judge_sampling_args]
+temperature = 0.3

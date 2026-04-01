@@ -10,8 +10,10 @@ tags = [
     "verifiers",
     "datasets",
     "single-turn",
+    "multi-turn",
     "rubric",
     "judge",
+    "partial-feedback",
     "advancedif",
 ]
 dependencies = [
@@ -26,6 +28,7 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 only-include = [
     "advanced_if.py",
+    "advanced_if_refine.py",
     "core",
 ]
 
